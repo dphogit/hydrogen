@@ -14,7 +14,7 @@ void run(char *source) {
   free(source);
 }
 
-void runrepl() {
+void runREPL() {
   size_t n = 0;
   char *line = NULL;
 
@@ -27,7 +27,7 @@ void runrepl() {
   }
 }
 
-char *readfile(const char *filename) {
+char *readFile(const char *filename) {
   FILE *file = fopen(filename, "rb");
   if (file == NULL) {
     fprintf(stderr, "Could not open file, %s.\n", filename);
@@ -35,34 +35,34 @@ char *readfile(const char *filename) {
   }
 
   fseek(file, 0L, SEEK_END);
-  size_t filesize = ftell(file);
+  size_t fileSize = ftell(file);
   rewind(file);
 
-  char *buffer = malloc(filesize + 1); // +1 for '/0'
+  char *buffer = malloc(fileSize + 1); // +1 for '/0'
   if (buffer == NULL) {
     fprintf(stderr, "Could not read file, %s.\n", filename);
     exit(EX_IOERR);
   }
 
-  size_t bytesread = fread(buffer, sizeof(char), filesize, file);
-  if (bytesread < filesize) {
+  size_t bytesRead = fread(buffer, sizeof(char), fileSize, file);
+  if (bytesRead < fileSize) {
     fprintf(stderr, "Could not read file, %s.\n", filename);
     exit(EX_IOERR);
   }
 
-  buffer[bytesread] = '\0';
+  buffer[bytesRead] = '\0';
   fclose(file);
   return buffer;
 }
 
-void runfile(const char *filename) {
+void runFile(const char *filename) {
   char *dot = strrchr(filename, '.');
   if (dot == NULL || (strcmp("hydro", dot + 1) != 0)) {
     fprintf(stderr, "File must have .hydro extension.\n");
     exit(EX_DATAERR);
   }
 
-  char *source = readfile(filename);
+  char *source = readFile(filename);
   run(source);
 }
 
@@ -76,9 +76,9 @@ void usage() {
 
 int main(int argc, char *argv[]) {
   if (argc == 1) {
-    runrepl();
+    runREPL();
   } else if (argc == 2) {
-    runfile(argv[1]);
+    runFile(argv[1]);
   } else {
     usage();
     return EX_USAGE;
