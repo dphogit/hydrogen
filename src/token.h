@@ -1,7 +1,7 @@
 #ifndef HYDRO_TOKEN_H
 #define HYDRO_TOKEN_H
 
-typedef enum {
+typedef enum TokenType {
   TOKEN_LEFT_PAREN,
   TOKEN_RIGHT_PAREN,
   TOKEN_PLUS,
@@ -15,7 +15,7 @@ typedef enum {
 
 typedef struct Token {
   TokenType type;
-  const char *lexeme;
+  const char *start;
   int length;
   int line;
 } Token;

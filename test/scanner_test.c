@@ -52,7 +52,7 @@ UTEST_I(ScannerTokenFixture, scanToken, 6) {
 
   ASSERT_EQ(token.length, testCase.len);
   ASSERT_EQ(token.line, 1);
-  ASSERT_STREQ(token.lexeme, testCase.source);
+  ASSERT_STREQ(token.start, testCase.source);
   ASSERT_EQ(token.type, testCase.type);
 }
 

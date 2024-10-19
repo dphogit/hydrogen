@@ -4,15 +4,13 @@
 #include <stdlib.h>
 #include <string.h>
 
+#include "vm.h"
+
 // https://man.freebsd.org/cgi/man.cgi?query=sysexits&manpath=FreeBSD+4.3-RELEASE
 #define EX_USAGE 64
 #define EX_DATAERR 65
+#define EX_SOFTWARE 70
 #define EX_IOERR 74
-
-void run(char *source) {
-  printf("Running: %s", source);
-  free(source);
-}
 
 void runREPL() {
   size_t n = 0;
@@ -22,12 +20,12 @@ void runREPL() {
   while (true) {
     printf("> ");
     if (getline(&line, &n, stdin) != -1) {
-      run(line);
+      interpret(line);
     }
   }
 }
 
-char *readFile(const char *filename) {
+const char *readFile(const char *filename) {
   FILE *file = fopen(filename, "rb");
   if (file == NULL) {
     fprintf(stderr, "Could not open file, %s.\n", filename);
@@ -62,8 +60,14 @@ void runFile(const char *filename) {
     exit(EX_DATAERR);
   }
 
-  char *source = readFile(filename);
-  run(source);
+  const char *source = readFile(filename);
+  InterpretResult result = interpret(source);
+  free((void *)source);
+
+  if (result == INTERPRET_COMPILE_ERROR)
+    exit(EX_DATAERR);
+  else if (result == INTERPRET_RUNTIME_ERROR)
+    exit(EX_SOFTWARE);
 }
 
 void usage() {

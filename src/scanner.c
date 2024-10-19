@@ -1,10 +1,15 @@
+/*
+ * The process of scanning (lexing) converts the source string into tokens
+ * which the language can understand for parsing.
+ */
+
 #include <stdbool.h>
 #include <string.h>
 
 #include "scanner.h"
 #include "token.h"
 
-void initScanner(Scanner *scanner, char *source) {
+void initScanner(Scanner *scanner, const char *source) {
   scanner->start = source;
   scanner->current = source;
   scanner->line = 1;
@@ -54,7 +59,7 @@ static void skipWhitespace(Scanner *scanner) {
 static Token createToken(Scanner *scanner, TokenType type) {
   Token token;
   token.type = type;
-  token.lexeme = scanner->start;
+  token.start = scanner->start;
   token.length = scanner->current - scanner->start;
   token.line = scanner->line;
   return token;
@@ -63,7 +68,7 @@ static Token createToken(Scanner *scanner, TokenType type) {
 static Token createErrorToken(Scanner *scanner, char *message) {
   Token token;
   token.type = TOKEN_ERROR;
-  token.lexeme = message;
+  token.start = message;
   token.length = strlen(message);
   token.line = scanner->line;
   return token;
@@ -109,6 +114,6 @@ Token scanToken(Scanner *scanner) {
   case '/':
     return createToken(scanner, TOKEN_SLASH);
   default:
-    return createErrorToken(scanner, "Unexpected character.");
+    return createErrorToken(scanner, "Unexpected character.\n");
   }
 }

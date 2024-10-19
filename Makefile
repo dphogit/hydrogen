@@ -1,5 +1,5 @@
 CC = gcc
-CFLAGS = -Wall -Wextra -Og
+CFLAGS = -Wall -Wextra -Og -g
 
 TARGET_EXEC := hydro
 TEST_EXEC := hydro_tests
@@ -35,7 +35,7 @@ test_build: $(BUILD_DIR)/$(TEST_EXEC)
 
 # Build step for tests.
 $(BUILD_DIR)/$(TEST_EXEC): $(TESTS) $(TEST_SRCS)
-	mkdir -p $(dir @)
+	mkdir -p $(BUILD_DIR)
 	$(CC) -I$(SRC_DIR) $(CFLAGS) $(TESTS) $(TEST_SRCS) $(TEST_DIR)/main.c -o $@
 
 .PHONY: clean
