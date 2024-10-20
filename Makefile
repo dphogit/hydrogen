@@ -1,5 +1,6 @@
 CC = gcc
 CFLAGS = -Wall -Wextra -Og -g
+DEBUG_MACRO_OPTIONS = -D DEBUG_PRINT_CODE -D DEBUG_TRACE_EXEUCTION
 
 TARGET_EXEC := hydro
 TEST_EXEC := hydro_tests
@@ -21,7 +22,7 @@ $(BUILD_DIR)/$(TARGET_EXEC): $(OBJS)
 # Build step for C source
 $(BUILD_DIR)/%.o: %.c
 	mkdir -p $(dir $@)
-	$(CC) $(CFLAGS) -c $< -o $@
+	$(CC) $(CFLAGS) $(DEBUG_MACRO_OPTIONS) -c $< -o $@
 
 # Build and run tests
 .PHONY: test

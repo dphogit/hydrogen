@@ -1,33 +1,208 @@
 #include <stdbool.h>
+#include <stdint.h>
 #include <stdio.h>
+#include <stdlib.h>
 
 #include "chunk.h"
 #include "compiler.h"
 #include "scanner.h"
 #include "token.h"
 
+#ifdef DEBUG_PRINT_CODE
+#include "debug.h"
+#endif
+
+// ----- Parser Utilities -----
+
+static void errorAt(Parser *parser, Token *token, const char *message) {
+  if (parser->panicMode)
+    return; // Returning early in panic mode suppresses cascaded errors.
+
+  parser->panicMode = true;
+  fprintf(stderr, "[line %d] Error", token->line);
+
+  if (token->type == TOKEN_EOF) {
+    fprintf(stderr, "at end");
+  } else if (token->type == TOKEN_ERROR) {
+  } else {
+    fprintf(stderr, " at '%.*s'", token->length, token->start);
+  }
+
+  fprintf(stderr, ": %s\n", message);
+  parser->hadError = true;
+}
+
+static void errorAtCurrent(Parser *parser, const char *message) {
+  errorAt(parser, &parser->current, message);
+}
+
+static void error(Parser *parser, const char *message) {
+  errorAt(parser, &parser->previous, message);
+}
+
+static void advance(Parser *parser) {
+  parser->previous = parser->current;
+
+  while (true) {
+    parser->current = scanToken(&parser->scanner);
+    if (parser->current.type != TOKEN_ERROR)
+      break;
+
+    // Error tokens include their messages in the struct.
+    errorAtCurrent(parser, parser->current.start);
+  }
+}
+
+static void consume(Parser *parser, TokenType type, const char *message) {
+  if (parser->current.type == type) {
+    advance(parser);
+    return;
+  }
+  errorAtCurrent(parser, message);
+}
+
+static void emitByte(Parser *parser, uint8_t byte) {
+  writeChunk(parser->chunk, byte, parser->previous.line);
+}
+
+static void emitBytes(Parser *parser, uint8_t byte1, uint8_t byte2) {
+  writeChunk(parser->chunk, byte1, parser->previous.line);
+  writeChunk(parser->chunk, byte2, parser->previous.line);
+}
+
+static void emitConstant(Parser *parser, Value value) {
+  int constantIndex = addConstant(parser->chunk, value);
+  if (constantIndex > UINT8_MAX) {
+    // Each instruction in the chunk's can only be 1 byte thus the chunk
+    // can only have 256 constants due to this max size of the index.
+    error(parser, "Too many constants in one chunk.");
+    constantIndex = 0;
+  }
+  emitBytes(parser, OP_CONSTANT, (uint8_t)constantIndex);
+}
+
+static void endCompiler(Parser *parser) {
+  emitByte(parser, OP_RETURN);
+#ifdef DEBUG_PRINT_CODE
+  if (!parser->hadError) {
+    disassembleChunk(parser->chunk, "code");
+  }
+#endif
+}
+
+// ----- Precedence Rule Parsing -----
+
+static ParseRule *getRule(TokenType type);
+static void expression(Parser *parser);
+static void parsePrecedence(Parser *parser, Precedence precedence);
+
+static void number(Parser *parser) {
+  double value = strtod(parser->previous.start, NULL);
+  emitConstant(parser, value);
+}
+
+static void grouping(Parser *parser) {
+  expression(parser);
+  consume(parser, TOKEN_RIGHT_PAREN, "Expect ')' after expression.");
+}
+
+static void unary(Parser *parser) {
+  TokenType operatorType = parser->previous.type;
+  parsePrecedence(parser, PREC_UNARY); // Parse (single) right operand.
+
+  switch (operatorType) {
+  case TOKEN_MINUS:
+    emitByte(parser, OP_NEGATE);
+    break;
+  default:
+    return; // Unreachable.
+  }
+}
+static void binary(Parser *parser) {
+  TokenType operatorType = parser->previous.type;
+  ParseRule *rule = getRule(operatorType);
+
+  // Parse right operand with one higher level of precedence because binary
+  // operators are left associative. e.g. 1 + 2 + 3 => (1 + 2) + 3.
+  parsePrecedence(parser, (Precedence)(rule->precedence + 1));
+
+  switch (operatorType) {
+  case TOKEN_PLUS:
+    emitByte(parser, OP_ADD);
+    break;
+  case TOKEN_MINUS:
+    emitByte(parser, OP_SUBTRACT);
+    break;
+  case TOKEN_STAR:
+    emitByte(parser, OP_MULTIPLY);
+    break;
+  case TOKEN_SLASH:
+    emitByte(parser, OP_DIVIDE);
+    break;
+  default:
+    return; // Unreachable.
+  }
+}
+
+/*
+ * An array acting as a 'table', indexed by the token type. Each element
+ * is a parse rule structure consisting of:
+ *
+ * 1. The function to compile a prefix expression starting with that token type.
+ *
+ * 2. The function to compile an infix expression whose left operand is
+ *    followed by a token of that type.
+ *
+ * 3. The precedence of an infix expression that uses that token as an operator.
+ */
+ParseRule rules[] = {
+    [TOKEN_LEFT_PAREN] = {grouping, NULL, PREC_NONE},
+    [TOKEN_RIGHT_PAREN] = {NULL, NULL, PREC_NONE},
+    [TOKEN_PLUS] = {NULL, binary, PREC_TERM},
+    [TOKEN_MINUS] = {unary, binary, PREC_TERM},
+    [TOKEN_STAR] = {NULL, binary, PREC_FACTOR},
+    [TOKEN_SLASH] = {NULL, binary, PREC_FACTOR},
+    [TOKEN_NUMBER] = {number, NULL, PREC_NONE},
+    [TOKEN_ERROR] = {NULL, NULL, PREC_NONE},
+    [TOKEN_EOF] = {NULL, NULL, PREC_NONE},
+};
+
+static ParseRule *getRule(TokenType type) { return &rules[type]; }
+
+static void expression(Parser *parser) { parsePrecedence(parser, PREC_TERM); }
+
+static void parsePrecedence(Parser *parser, Precedence precedence) {
+  advance(parser);
+  ParseFn prefixRule = getRule(parser->previous.type)->prefix;
+  if (prefixRule == NULL) {
+    error(parser, "Expect expression.");
+    return;
+  }
+
+  prefixRule(parser);
+
+  while (precedence <= getRule(parser->current.type)->precedence) {
+    advance(parser);
+    ParseFn infixRule = getRule(parser->previous.type)->infix;
+    infixRule(parser);
+  }
+}
+
 // Returns true if the compilation succeeded.
 bool compile(const char *source, Chunk *chunk) {
   Scanner scanner;
   initScanner(&scanner, source);
 
-  int line = -1;
-  while (true) {
-    Token token = scanToken(&scanner);
+  Parser parser;
+  parser.scanner = scanner;
+  parser.hadError = false;
+  parser.panicMode = false;
+  parser.chunk = chunk;
 
-    // TODO - Disassemle
-    if (token.type == TOKEN_EOF)
-      break;
-
-    if (token.line == line) {
-      printf("   | ");
-    } else {
-      printf("%4d ", token.line);
-      line = token.line;
-    }
-
-    printf("%2d '%.*s'\n", token.type, token.length, token.start);
-  }
+  advance(&parser);
+  expression(&parser);
+  consume(&parser, TOKEN_EOF, "Expect end of expression.");
+  endCompiler(&parser);
 
   return true;
 }

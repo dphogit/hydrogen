@@ -1,3 +1,4 @@
+#include <stdio.h>
 #include <stdlib.h>
 
 #include "value.h"
@@ -27,3 +28,5 @@ void freeValueArray(ValueArray *arr) {
   free(arr->values);
   initValueArray(arr);
 }
+
+void printValue(Value value) { printf("%g", value); }

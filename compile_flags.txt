@@ -1,4 +1,7 @@
 -Wall
 -Wextra
 -Isrc
-
+-D
+DEBUG_PRINT_CODE
+-D
+DEBUG_TRACE_EXECUTION

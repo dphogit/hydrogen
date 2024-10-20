@@ -11,5 +11,7 @@ InterpretResult interpret(const char *source) {
     return INTERPRET_COMPILE_ERROR;
   }
 
+  // TODO: Execute the bytecode!
+
   return INTERPRET_OK;
 }

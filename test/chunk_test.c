@@ -31,10 +31,11 @@ UTEST_F(ChunkTestFixture, initChunk) {
 UTEST_F(ChunkTestFixture, writeChunk) {
   Chunk chunk = utest_fixture->chunk;
 
-  writeChunk(&chunk, 69);
+  writeChunk(&chunk, 69, 1);
 
   ASSERT_EQ(chunk.code[0], 69);
   ASSERT_EQ(chunk.count, 1);
+  ASSERT_EQ(chunk.lines[0], 1);
 }
 
 UTEST_F(ChunkTestFixture, addConstant) {
