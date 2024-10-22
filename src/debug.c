@@ -32,10 +32,6 @@ int disassembleInstruction(Chunk *chunk, int offset) {
   switch (instruction) {
   case OP_CONSTANT:
     return constantInstruction("OP_CONSTANT", chunk, offset);
-  case OP_POP:
-    return simpleInstruction("OP_POP", offset);
-  case OP_PUSH:
-    return simpleInstruction("OP_PUSH", offset);
   case OP_ADD:
     return simpleInstruction("OP_ADD", offset);
   case OP_SUBTRACT:

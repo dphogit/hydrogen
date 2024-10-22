@@ -27,8 +27,6 @@ int addConstant(Chunk *chunk, Value value);
 
 typedef enum OpCode {
   OP_CONSTANT,
-  OP_POP,
-  OP_PUSH,
   OP_ADD,
   OP_SUBTRACT,
   OP_MULTIPLY,

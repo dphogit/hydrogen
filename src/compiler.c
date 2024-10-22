@@ -5,12 +5,9 @@
 
 #include "chunk.h"
 #include "compiler.h"
+#include "debug.h"
 #include "scanner.h"
 #include "token.h"
-
-#ifdef DEBUG_PRINT_CODE
-#include "debug.h"
-#endif
 
 // ----- Parser Utilities -----
 
