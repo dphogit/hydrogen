@@ -201,5 +201,5 @@ bool compile(const char *source, Chunk *chunk) {
   consume(&parser, TOKEN_EOF, "Expect end of expression.");
   endCompiler(&parser);
 
-  return true;
+  return !parser.hadError;
 }

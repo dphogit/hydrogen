@@ -20,50 +20,79 @@ typedef struct TokenTestCase {
   int len;
 } TokenTestCase;
 
-struct ScannerTokenFixture {
-  TokenTestCase *testCase;
-};
-
 TokenTestCase tokenTestCases[] = {
+    // Single character tokens.
     {.source = "(", .type = TOKEN_LEFT_PAREN, .len = 1},
+    {.source = ")", .type = TOKEN_RIGHT_PAREN, .len = 1},
+    {.source = "{", .type = TOKEN_LEFT_BRACE, .len = 1},
+    {.source = "}", .type = TOKEN_RIGHT_BRACE, .len = 1},
+    {.source = ",", .type = TOKEN_COMMA, .len = 1},
+    {.source = ".", .type = TOKEN_DOT, .len = 1},
     {.source = "+", .type = TOKEN_PLUS, .len = 1},
     {.source = "-", .type = TOKEN_MINUS, .len = 1},
     {.source = "*", .type = TOKEN_STAR, .len = 1},
     {.source = "/", .type = TOKEN_SLASH, .len = 1},
-    {.source = "123.45", .type = TOKEN_NUMBER, .len = 6}};
+    {.source = ";", .type = TOKEN_SEMICOLON, .len = 1},
 
-UTEST_I_SETUP(ScannerTokenFixture) {
-  utest_fixture->testCase = &tokenTestCases[utest_index];
-  ASSERT_EQ(ARRAY_SIZE(tokenTestCases), 6u);
-}
+    // One or two character tokens.
+    {.source = "!", .type = TOKEN_BANG, .len = 1},
+    {.source = "!=", .type = TOKEN_BANG_EQUAL, .len = 2},
+    {.source = "=", .type = TOKEN_EQUAL, .len = 1},
+    {.source = "==", .type = TOKEN_EQUAL_EQUAL, .len = 2},
+    {.source = ">", .type = TOKEN_GREATER, .len = 1},
+    {.source = ">=", .type = TOKEN_GREATER_EQUAL, .len = 2},
+    {.source = "<", .type = TOKEN_LESS, .len = 1},
+    {.source = "<=", .type = TOKEN_LESS_EQUAL, .len = 2},
 
-UTEST_I_TEARDOWN(ScannerTokenFixture) {
-  utest_fixture->testCase = NULL;
-  ASSERT_LE(0u, utest_index);
-}
+    // Keywords
+    {.source = "and", .type = TOKEN_AND, .len = 3},
+    {.source = "class", .type = TOKEN_CLASS, .len = 5},
+    {.source = "else", .type = TOKEN_ELSE, .len = 4},
+    {.source = "false", .type = TOKEN_FALSE, .len = 5},
+    {.source = "for", .type = TOKEN_FOR, .len = 3},
+    {.source = "fun", .type = TOKEN_FUN, .len = 3},
+    {.source = "if", .type = TOKEN_IF, .len = 2},
+    {.source = "nil", .type = TOKEN_NIL, .len = 3},
+    {.source = "or", .type = TOKEN_OR, .len = 2},
+    {.source = "print", .type = TOKEN_PRINT, .len = 5},
+    {.source = "return", .type = TOKEN_RETURN, .len = 6},
+    {.source = "super", .type = TOKEN_SUPER, .len = 5},
+    {.source = "this", .type = TOKEN_THIS, .len = 4},
+    {.source = "true", .type = TOKEN_TRUE, .len = 4},
+    {.source = "var", .type = TOKEN_VAR, .len = 3},
+    {.source = "while", .type = TOKEN_WHILE, .len = 5},
 
-UTEST_I(ScannerTokenFixture, scanToken, 6) {
-  TokenTestCase testCase = *utest_fixture->testCase;
+    // Literals
+    {.source = "\"myString\"", .type = TOKEN_STRING, .len = 10},
+    {.source = "123.45", .type = TOKEN_NUMBER, .len = 6},
+    {.source = "myVar", .type = TOKEN_IDENTIFIER, .len = 5},
+};
 
-  Scanner scanner;
-  initScanner(&scanner, testCase.source);
+UTEST(Scanner, scanToken) {
+  int n = sizeof(tokenTestCases) / sizeof(TokenTestCase);
 
-  Token token = scanToken(&scanner);
+  // printf("Executing %d cases...\n", n);
+  for (int i = 0; i < n; i++) {
+    TokenTestCase testCase = tokenTestCases[i];
 
-  ASSERT_EQ(token.length, testCase.len);
-  ASSERT_EQ(token.line, 1);
-  ASSERT_STREQ(token.start, testCase.source);
-  ASSERT_EQ(token.type, testCase.type);
+    // printf("[%2d] %10s", i, testCase.source);
+    Scanner scanner;
+    initScanner(&scanner, testCase.source);
+
+    Token token = scanToken(&scanner);
+
+    ASSERT_EQ(token.length, testCase.len);
+    ASSERT_EQ(token.line, 1);
+    ASSERT_STREQ(token.start, testCase.source);
+    ASSERT_EQ(token.type, testCase.type);
+    // printf("    PASSED\n");
+  }
 }
 
 typedef struct WhitespaceTestCase {
   char *source;
   int lines;
 } WhitespaceTestCase;
-
-typedef struct ScannerWhitespaceFixture {
-  WhitespaceTestCase *testCase;
-} ScannerWhitespaceFixture;
 
 WhitespaceTestCase whitespaceTestCases[] = {
     {.source = "  \n", .lines = 2},
@@ -72,23 +101,31 @@ WhitespaceTestCase whitespaceTestCases[] = {
     {.source = "\t\n", .lines = 2},
     {.source = "// Inline comment\n", .lines = 2}};
 
-UTEST_I_SETUP(ScannerWhitespaceFixture) {
-  utest_fixture->testCase = &whitespaceTestCases[utest_index];
-  ASSERT_EQ(ARRAY_SIZE(whitespaceTestCases), 5u);
+UTEST(Scanner, whiteSpace) {
+  int n = sizeof(whitespaceTestCases) / sizeof(WhitespaceTestCase);
+
+  for (int i = 0; i < n; i++) {
+    WhitespaceTestCase testCase = whitespaceTestCases[i];
+
+    Scanner scanner;
+    initScanner(&scanner, testCase.source);
+
+    scanToken(&scanner);
+
+    ASSERT_EQ(scanner.line, testCase.lines);
+  }
 }
 
-UTEST_I_TEARDOWN(ScannerWhitespaceFixture) {
-  utest_fixture->testCase = NULL;
-  ASSERT_LE(0u, utest_index);
-}
-
-UTEST_I(ScannerWhitespaceFixture, scanToken, 5) {
-  WhitespaceTestCase testCase = *utest_fixture->testCase;
-
+UTEST(Scanner, syntaxErrors) {
   Scanner scanner;
-  initScanner(&scanner, testCase.source);
 
-  scanToken(&scanner);
+  initScanner(&scanner, "$");
+  Token token = scanToken(&scanner);
+  ASSERT_EQ(token.type, (TokenType)TOKEN_ERROR);
+  ASSERT_STREQ(token.start, "Unexpected character.");
 
-  ASSERT_EQ(scanner.line, testCase.lines);
+  initScanner(&scanner, "\"I forgot a closing quote!");
+  token = scanToken(&scanner);
+  ASSERT_EQ(token.type, (TokenType)TOKEN_ERROR);
+  ASSERT_STREQ(token.start, "Unterminated string.");
 }

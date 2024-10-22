@@ -3,7 +3,7 @@ CFLAGS = -Wall -Wextra -Og -g
 DEBUG_MACRO_OPTIONS = -D DEBUG_PRINT_CODE -D DEBUG_TRACE_EXECUTION
 
 TARGET_EXEC := hydro
-TEST_EXEC := hydro_tests
+TEST_EXEC := tests
 
 BUILD_DIR := build
 SRC_DIR := src
