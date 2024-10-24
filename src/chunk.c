@@ -16,11 +16,11 @@ void initChunk(Chunk *chunk) {
 static void growChunk(Chunk *chunk) {
   chunk->capacity = chunk->capacity < 8 ? 8 : chunk->capacity * 2;
 
-  chunk->code = realloc(chunk->code, chunk->capacity);
+  chunk->code = realloc(chunk->code, sizeof(uint8_t) * chunk->capacity);
   if (chunk->code == NULL)
     exit(EXIT_FAILURE);
 
-  chunk->lines = realloc(chunk->lines, chunk->capacity);
+  chunk->lines = realloc(chunk->lines, sizeof(int) * chunk->capacity);
   if (chunk->lines == NULL)
     exit(EXIT_FAILURE);
 }

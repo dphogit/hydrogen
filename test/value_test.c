@@ -26,8 +26,28 @@ UTEST_F(ValueTestFixture, initValueArray) {
 UTEST_F(ValueTestFixture, appendValueArray) {
   ValueArray valueArray = utest_fixture->valueArray;
 
-  appendValueArray(&valueArray, 6.9);
+  appendValueArray(&valueArray, NUMBER_VAL(6.9));
 
   ASSERT_EQ(valueArray.count, 1);
-  ASSERT_EQ(valueArray.values[0], 6.9);
+  ASSERT_EQ(AS_NUMBER(valueArray.values[0]), 6.9);
+}
+
+UTEST(Value, valuesEqual) {
+  Value a = BOOL_VAL(true), b = BOOL_VAL(true);
+  EXPECT_TRUE(valuesEqual(a, b));
+
+  a = BOOL_VAL(true), b = BOOL_VAL(false);
+  EXPECT_FALSE(valuesEqual(a, b));
+
+  a = NUMBER_VAL(6.9), b = NUMBER_VAL(6.9);
+  EXPECT_TRUE(valuesEqual(a, b));
+
+  a = NUMBER_VAL(6.9), b = NUMBER_VAL(4.2);
+  EXPECT_FALSE(valuesEqual(a, b));
+
+  a = NIL_VAL, b = NIL_VAL;
+  EXPECT_TRUE(valuesEqual(a, b));
+
+  a = NIL_VAL, b = BOOL_VAL(false);
+  EXPECT_FALSE(valuesEqual(a, b));
 }

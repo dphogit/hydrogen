@@ -16,12 +16,19 @@ typedef struct Parser {
   Chunk *chunk; // The chunk the bytecode is being written to.
 } Parser;
 
-/* Hydrogen's precedence levels, in order from lowest to highest. */
+// Hydrogen's precedence levels, in order from lowest to highest.
+// Follows: https://en.cppreference.com/w/c/language/operator_precedence
 typedef enum Precedence {
   PREC_NONE,
-  PREC_TERM,   // + -
-  PREC_FACTOR, // * /
-  PREC_UNARY,  // ! -
+  PREC_ASSIGNMENT, // =
+  PREC_OR,         // or
+  PREC_AND,        // and
+  PREC_EQUALITY,   // == !=
+  PREC_COMPARISON, // < > <= >=
+  PREC_TERM,       // + -
+  PREC_FACTOR,     // * /
+  PREC_UNARY,      // ! -
+  PREC_CALL,       // . ()
   PREC_PRIMARY
 } Precedence;
 

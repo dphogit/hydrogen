@@ -11,7 +11,7 @@ void initValueArray(ValueArray *arr) {
 
 static void growValueArray(ValueArray *arr) {
   arr->capacity = arr->capacity < 8 ? 8 : arr->capacity * 2;
-  arr->values = realloc(arr->values, arr->capacity);
+  arr->values = realloc(arr->values, sizeof(Value) * arr->capacity);
   if (arr->values == NULL)
     exit(EXIT_FAILURE);
 }
@@ -29,4 +29,32 @@ void freeValueArray(ValueArray *arr) {
   initValueArray(arr);
 }
 
-void printValue(Value value) { printf("%g", value); }
+bool valuesEqual(Value a, Value b) {
+  if (a.type != b.type)
+    return false;
+
+  switch (a.type) {
+  case VAL_NUMBER:
+    return AS_NUMBER(a) == AS_NUMBER(b);
+  case VAL_BOOL:
+    return AS_BOOL(a) == AS_BOOL(b);
+  case VAL_NIL:
+    return true;
+  default:
+    return false; // Unreachable.
+  }
+}
+
+void printValue(Value value) {
+  switch (value.type) {
+  case VAL_NUMBER:
+    printf("%g", AS_NUMBER(value));
+    break;
+  case VAL_BOOL:
+    printf(AS_BOOL(value) ? "true" : "false");
+    break;
+  case VAL_NIL:
+    printf("nil");
+    break;
+  }
+}

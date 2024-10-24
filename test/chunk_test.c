@@ -41,9 +41,9 @@ UTEST_F(ChunkTestFixture, writeChunk) {
 UTEST_F(ChunkTestFixture, addConstant) {
   Chunk chunk = utest_fixture->chunk;
 
-  int constantIndex = addConstant(&chunk, 69.0);
+  int constantIndex = addConstant(&chunk, NUMBER_VAL(69.0));
 
   ASSERT_EQ(constantIndex, 0);
   ASSERT_EQ(chunk.constants.count, 1);
-  ASSERT_EQ(chunk.constants.values[0], 69.0);
+  ASSERT_EQ(AS_NUMBER(chunk.constants.values[0]), 69.0);
 }

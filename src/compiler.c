@@ -95,7 +95,7 @@ static void parsePrecedence(Parser *parser, Precedence precedence);
 
 static void number(Parser *parser) {
   double value = strtod(parser->previous.start, NULL);
-  emitConstant(parser, value);
+  emitConstant(parser, NUMBER_VAL(value));
 }
 
 static void grouping(Parser *parser) {
@@ -111,10 +111,13 @@ static void unary(Parser *parser) {
   case TOKEN_MINUS:
     emitByte(parser, OP_NEGATE);
     break;
+  case TOKEN_BANG:
+    emitByte(parser, OP_NOT);
   default:
     return; // Unreachable.
   }
 }
+
 static void binary(Parser *parser) {
   TokenType operatorType = parser->previous.type;
   ParseRule *rule = getRule(operatorType);
@@ -136,6 +139,40 @@ static void binary(Parser *parser) {
   case TOKEN_SLASH:
     emitByte(parser, OP_DIVIDE);
     break;
+  case TOKEN_LESS:
+    emitByte(parser, OP_LT);
+    break;
+  case TOKEN_LESS_EQUAL:
+    emitByte(parser, OP_LTE);
+    break;
+  case TOKEN_BANG_EQUAL:
+    emitByte(parser, OP_NEQ);
+    break;
+  case TOKEN_EQUAL_EQUAL:
+    emitByte(parser, OP_EQ);
+    break;
+  case TOKEN_GREATER:
+    emitByte(parser, OP_GT);
+    break;
+  case TOKEN_GREATER_EQUAL:
+    emitByte(parser, OP_GTE);
+    break;
+  default:
+    return; // Unreachable.
+  }
+}
+
+static void literal(Parser *parser) {
+  switch (parser->previous.type) {
+  case TOKEN_FALSE:
+    emitByte(parser, OP_FALSE);
+    return;
+  case TOKEN_TRUE:
+    emitByte(parser, OP_TRUE);
+    return;
+  case TOKEN_NIL:
+    emitByte(parser, OP_NIL);
+    return;
   default:
     return; // Unreachable.
   }
@@ -153,20 +190,61 @@ static void binary(Parser *parser) {
  * 3. The precedence of an infix expression that uses that token as an operator.
  */
 ParseRule rules[] = {
+    // Single character
     [TOKEN_LEFT_PAREN] = {grouping, NULL, PREC_NONE},
     [TOKEN_RIGHT_PAREN] = {NULL, NULL, PREC_NONE},
+    [TOKEN_LEFT_BRACE] = {NULL, NULL, PREC_NONE},
+    [TOKEN_RIGHT_BRACE] = {NULL, NULL, PREC_NONE},
+    [TOKEN_COMMA] = {NULL, NULL, PREC_NONE},
+    [TOKEN_DOT] = {NULL, NULL, PREC_NONE},
     [TOKEN_PLUS] = {NULL, binary, PREC_TERM},
     [TOKEN_MINUS] = {unary, binary, PREC_TERM},
     [TOKEN_STAR] = {NULL, binary, PREC_FACTOR},
     [TOKEN_SLASH] = {NULL, binary, PREC_FACTOR},
+    [TOKEN_SEMICOLON] = {NULL, NULL, PREC_NONE},
+
+    // One or two characters
+    [TOKEN_BANG] = {unary, NULL, PREC_NONE},
+    [TOKEN_BANG_EQUAL] = {NULL, binary, PREC_EQUALITY},
+    [TOKEN_EQUAL] = {NULL, NULL, PREC_NONE},
+    [TOKEN_EQUAL_EQUAL] = {NULL, binary, PREC_EQUALITY},
+    [TOKEN_GREATER] = {NULL, binary, PREC_COMPARISON},
+    [TOKEN_GREATER_EQUAL] = {NULL, binary, PREC_COMPARISON},
+    [TOKEN_LESS] = {NULL, binary, PREC_COMPARISON},
+    [TOKEN_LESS_EQUAL] = {NULL, binary, PREC_COMPARISON},
+
+    // Keywords
+    [TOKEN_AND] = {NULL, NULL, PREC_NONE},
+    [TOKEN_CLASS] = {NULL, NULL, PREC_NONE},
+    [TOKEN_ELSE] = {NULL, NULL, PREC_NONE},
+    [TOKEN_FALSE] = {literal, NULL, PREC_NONE},
+    [TOKEN_FOR] = {NULL, NULL, PREC_NONE},
+    [TOKEN_FUN] = {NULL, NULL, PREC_NONE},
+    [TOKEN_IF] = {NULL, NULL, PREC_NONE},
+    [TOKEN_NIL] = {literal, NULL, PREC_NONE},
+    [TOKEN_OR] = {NULL, NULL, PREC_NONE},
+    [TOKEN_PRINT] = {NULL, NULL, PREC_NONE},
+    [TOKEN_RETURN] = {NULL, NULL, PREC_NONE},
+    [TOKEN_SUPER] = {NULL, NULL, PREC_NONE},
+    [TOKEN_THIS] = {NULL, NULL, PREC_NONE},
+    [TOKEN_TRUE] = {literal, NULL, PREC_NONE},
+    [TOKEN_VAR] = {NULL, NULL, PREC_NONE},
+    [TOKEN_WHILE] = {NULL, NULL, PREC_NONE},
+
+    // Literals
+    [TOKEN_STRING] = {NULL, NULL, PREC_NONE},
     [TOKEN_NUMBER] = {number, NULL, PREC_NONE},
+    [TOKEN_IDENTIFIER] = {NULL, NULL, PREC_NONE},
+
     [TOKEN_ERROR] = {NULL, NULL, PREC_NONE},
     [TOKEN_EOF] = {NULL, NULL, PREC_NONE},
 };
 
 static ParseRule *getRule(TokenType type) { return &rules[type]; }
 
-static void expression(Parser *parser) { parsePrecedence(parser, PREC_TERM); }
+static void expression(Parser *parser) {
+  parsePrecedence(parser, PREC_ASSIGNMENT);
+}
 
 static void parsePrecedence(Parser *parser, Precedence precedence) {
   advance(parser);

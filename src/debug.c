@@ -32,6 +32,12 @@ int disassembleInstruction(Chunk *chunk, int offset) {
   switch (instruction) {
   case OP_CONSTANT:
     return constantInstruction("OP_CONSTANT", chunk, offset);
+  case OP_NIL:
+    return simpleInstruction("OP_NIL", offset);
+  case OP_TRUE:
+    return simpleInstruction("OP_TRUE", offset);
+  case OP_FALSE:
+    return simpleInstruction("OP_FALSE", offset);
   case OP_ADD:
     return simpleInstruction("OP_ADD", offset);
   case OP_SUBTRACT:
@@ -40,6 +46,20 @@ int disassembleInstruction(Chunk *chunk, int offset) {
     return simpleInstruction("OP_MULTIPLY", offset);
   case OP_DIVIDE:
     return simpleInstruction("OP_DIVIDE", offset);
+  case OP_LT:
+    return simpleInstruction("OP_LT", offset);
+  case OP_LTE:
+    return simpleInstruction("OP_LTE", offset);
+  case OP_EQ:
+    return simpleInstruction("OP_EQ", offset);
+  case OP_NEQ:
+    return simpleInstruction("OP_NEQ", offset);
+  case OP_GT:
+    return simpleInstruction("OP_GT", offset);
+  case OP_GTE:
+    return simpleInstruction("OP_GTE", offset);
+  case OP_NOT:
+    return simpleInstruction("OP_NOT", offset);
   case OP_NEGATE:
     return simpleInstruction("OP_NEGATE", offset);
   case OP_RETURN:
