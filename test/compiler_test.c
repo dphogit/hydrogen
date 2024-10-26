@@ -3,6 +3,7 @@
 
 #include "chunk.h"
 #include "compiler.h"
+#include "object.h"
 #include "utest.h"
 
 struct CompilerTestFixture {
@@ -176,4 +177,22 @@ UTEST_F(CompilerTestFixture, compileGreater) {
 
 UTEST_F(CompilerTestFixture, compileGreaterEqual) {
   BinaryExpressionTest(">=", OP_GTE);
+}
+
+UTEST_F(CompilerTestFixture, compileString) {
+  Chunk chunk = utest_fixture->chunk;
+
+  bool result = compile("\"Hello, World!\"", &chunk);
+
+  ASSERT_TRUE(result);
+
+  ASSERT_EQ(chunk.count, 3);
+
+  ASSERT_EQ(chunk.code[0], OP_CONSTANT);
+  ASSERT_EQ(chunk.code[1], 0);
+  ASSERT_EQ(chunk.code[2], OP_RETURN);
+
+  ASSERT_EQ(chunk.constants.count, 1);
+  ASSERT_TRUE(IS_STRING(chunk.constants.values[0]));
+  ASSERT_STREQ(AS_CSTRING(chunk.constants.values[0]), "Hello, World!");
 }

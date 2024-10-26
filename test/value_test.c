@@ -1,3 +1,4 @@
+#include "object.h"
 #include "utest.h"
 #include "value.h"
 
@@ -48,6 +49,11 @@ UTEST(Value, valuesEqual) {
   a = NIL_VAL, b = NIL_VAL;
   EXPECT_TRUE(valuesEqual(a, b));
 
+  // Different value types.
   a = NIL_VAL, b = BOOL_VAL(false);
   EXPECT_FALSE(valuesEqual(a, b));
+
+  // Strings (different objects on heap, but we expect value equality)
+  a = OBJ_VAL(copyString("Hello", 5)), b = OBJ_VAL(copyString("Hello", 5));
+  EXPECT_TRUE(valuesEqual(a, b));
 }

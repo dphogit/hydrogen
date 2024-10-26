@@ -20,9 +20,11 @@ UTEST(VM, expressions) {
   VM vm;
   initVM(&vm);
 
-  char *expressions[] = {"3 + 8",  "9 - 4",  "5 * 8",  "10 / 10", "-(5 - 2)",
-                         "false",  "true",   "nil",    "!true",   "1 < 2",
-                         "1 <= 2", "1 == 2", "1 != 2", "1 > 2",   "1 >= 2"};
+  char *expressions[] = {
+      "3 + 8",    "9 - 4", "5 * 8",  "10 / 10",
+      "-(5 - 2)", "false", "true",   "nil",
+      "!true",    "1 < 2", "1 <= 2", "1 == 2",
+      "1 != 2",   "1 > 2", "1 >= 2", "\"Hello\" + \", World!\""};
 
   int n = sizeof(expressions) / sizeof(expressions[0]);
   for (int i = 0; i < n; i++) {

@@ -1,6 +1,8 @@
 #include <stdio.h>
 #include <stdlib.h>
+#include <string.h>
 
+#include "object.h"
 #include "value.h"
 
 void initValueArray(ValueArray *arr) {
@@ -40,6 +42,10 @@ bool valuesEqual(Value a, Value b) {
     return AS_BOOL(a) == AS_BOOL(b);
   case VAL_NIL:
     return true;
+  case VAL_OBJ: {
+    ObjString *s1 = AS_STRING(a), *s2 = AS_STRING(b);
+    return s1->length == s2->length && memcmp(s1, s2, s1->length) == 0;
+  }
   default:
     return false; // Unreachable.
   }
@@ -55,6 +61,9 @@ void printValue(Value value) {
     break;
   case VAL_NIL:
     printf("nil");
+    break;
+  case VAL_OBJ:
+    printObject(value);
     break;
   }
 }

@@ -2,10 +2,13 @@
 #include <stddef.h>
 #include <stdint.h>
 #include <stdio.h>
+#include <stdlib.h>
+#include <string.h>
 
 #include "chunk.h"
 #include "compiler.h"
 #include "debug.h"
+#include "object.h"
 #include "value.h"
 #include "vm.h"
 
@@ -40,11 +43,23 @@ static void runtimeError(VM *vm, const char *format, ...) {
 
 static Value peekn(VM *vm, int n) { return vm->stackTop[-(n + 1)]; }
 
-static Value peek(VM *vm) { return peekn(vm, 0); }
+static Value peek(VM *vm) { return vm->stackTop[-1]; }
 
 // Nil and false are falsy, everything else is truthy.
 static bool isFalsy(Value value) {
   return IS_NIL(value) || (IS_BOOL(value) && !AS_BOOL(value));
+}
+
+static void concatenate(VM *vm) {
+  ObjString *b = AS_STRING(pop(vm)), *a = AS_STRING(pop(vm));
+
+  int n = a->length + b->length;
+  char *buffer = malloc(sizeof(char) * (n + 1));
+  memcpy(buffer, a->chars, a->length);
+  memcpy(buffer + a->length, b->chars, b->length);
+  buffer[n] = '\0';
+
+  push(vm, OBJ_VAL(takeString(buffer, n)));
 }
 
 #ifdef DEBUG_TRACE_EXECUTION
@@ -110,8 +125,17 @@ static InterpretResult run(VM *vm) {
       push(vm, BOOL_VAL(false));
       break;
     case OP_ADD:
-      BINARY_OP(NUMBER_VAL, +);
-      break;
+      if (IS_STRING(peek(vm)) && IS_STRING(peekn(vm, 1))) {
+        concatenate(vm);
+        break;
+      }
+      if (IS_NUMBER(peek(vm)) && IS_NUMBER(peekn(vm, 1))) {
+        double b = AS_NUMBER(pop(vm)), a = AS_NUMBER(pop(vm));
+        push(vm, NUMBER_VAL(a + b));
+        break;
+      }
+      runtimeError(vm, "Operands must be two numbers or two strings");
+      return INTERPRET_RUNTIME_ERROR;
     case OP_SUBTRACT:
       BINARY_OP(NUMBER_VAL, -);
       break;
