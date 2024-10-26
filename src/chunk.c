@@ -1,7 +1,9 @@
 #include <stddef.h>
+#include <stdint.h>
 #include <stdlib.h>
 
 #include "chunk.h"
+#include "memory.h"
 #include "value.h"
 
 void initChunk(Chunk *chunk) {
@@ -14,15 +16,12 @@ void initChunk(Chunk *chunk) {
 
 // Grows the chunk's capacity and memory to allow for more instructions.
 static void growChunk(Chunk *chunk) {
-  chunk->capacity = chunk->capacity < 8 ? 8 : chunk->capacity * 2;
+  int oldCapacity = chunk->capacity;
+  int newCapacity = GROW_CAPACITY(oldCapacity);
 
-  chunk->code = realloc(chunk->code, sizeof(uint8_t) * chunk->capacity);
-  if (chunk->code == NULL)
-    exit(EXIT_FAILURE);
-
-  chunk->lines = realloc(chunk->lines, sizeof(int) * chunk->capacity);
-  if (chunk->lines == NULL)
-    exit(EXIT_FAILURE);
+  chunk->capacity = newCapacity;
+  chunk->code = GROW_ARRAY(uint8_t, chunk->code, oldCapacity, newCapacity);
+  chunk->lines = GROW_ARRAY(int, chunk->lines, oldCapacity, newCapacity);
 }
 
 void writeChunk(Chunk *chunk, uint8_t byte, int line) {
@@ -42,7 +41,7 @@ int addConstant(Chunk *chunk, Value value) {
 
 void freeChunk(Chunk *chunk) {
   freeValueArray(&chunk->constants);
-  free(chunk->code);
-  free(chunk->lines);
+  FREE_ARRAY(uint8_t, chunk->code, chunk->capacity);
+  FREE_ARRAY(int, chunk->lines, chunk->capacity);
   initChunk(chunk);
 }

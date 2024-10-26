@@ -3,38 +3,45 @@
 #include <stdlib.h>
 #include <string.h>
 
+#include "gc.h"
+#include "memory.h"
 #include "object.h"
 
 // Helper macro so consumer of allocateObject does not have to cast.
-#define ALLOCATE_OBJ(type, objectType)                                         \
-  (type *)allocateObject(sizeof(type), objectType)
+#define ALLOCATE_OBJ(gc, type, objectType)                                     \
+  (type *)allocateObject(gc, sizeof(type), objectType)
 
-static Obj *allocateObject(size_t size, ObjType type) {
-  Obj *object = malloc(size);
+static Obj *allocateObject(GC *gc, size_t size, ObjType type) {
+  Obj *object = reallocate(NULL, 0, size);
   if (object == NULL)
     exit(EXIT_FAILURE);
 
   object->type = type;
+
+  gcAddObject(gc, object);
+
   return object;
 }
 
-static ObjString *allocateString(char *chars, int n) {
-  ObjString *string = ALLOCATE_OBJ(ObjString, OBJ_STRING);
+static ObjString *allocateString(GC *gc, char *chars, int n) {
+  ObjString *string = ALLOCATE_OBJ(gc, ObjString, OBJ_STRING);
   string->length = n;
   string->chars = chars;
   return string;
 }
 
-ObjString *takeString(char *chars, int n) { return allocateString(chars, n); }
+ObjString *takeString(GC *gc, char *chars, int n) {
+  return allocateString(gc, chars, n);
+}
 
-ObjString *copyString(const char *chars, int n) {
-  char *buffer = malloc(sizeof(char) * (n + 1));
+ObjString *copyString(GC *gc, const char *chars, int n) {
+  char *buffer = ALLOCATE(char, n + 1);
   if (buffer == NULL)
     exit(EXIT_FAILURE);
 
   memcpy(buffer, chars, n);
   buffer[n] = '\0';
-  return allocateString(buffer, n);
+  return allocateString(gc, buffer, n);
 }
 
 void printObject(Value value) {

@@ -2,6 +2,7 @@
 #include <stdlib.h>
 #include <string.h>
 
+#include "memory.h"
 #include "object.h"
 #include "value.h"
 
@@ -12,10 +13,11 @@ void initValueArray(ValueArray *arr) {
 }
 
 static void growValueArray(ValueArray *arr) {
-  arr->capacity = arr->capacity < 8 ? 8 : arr->capacity * 2;
-  arr->values = realloc(arr->values, sizeof(Value) * arr->capacity);
-  if (arr->values == NULL)
-    exit(EXIT_FAILURE);
+  int oldCapacity = arr->capacity;
+  int newCapacity = GROW_CAPACITY(oldCapacity);
+
+  arr->capacity = newCapacity;
+  arr->values = GROW_ARRAY(Value, arr->values, oldCapacity, newCapacity);
 }
 
 void appendValueArray(ValueArray *arr, Value value) {
@@ -27,7 +29,7 @@ void appendValueArray(ValueArray *arr, Value value) {
 }
 
 void freeValueArray(ValueArray *arr) {
-  free(arr->values);
+  FREE_ARRAY(Value, arr->values, arr->capacity);
   initValueArray(arr);
 }
 

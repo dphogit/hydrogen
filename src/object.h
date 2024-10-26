@@ -1,6 +1,7 @@
 #ifndef HYDRO_OBJECT_H
 #define HYDRO_OBJECT_H
 
+#include "gc.h"
 #include "value.h"
 
 #define OBJ_TYPE(value) (AS_OBJ(value)->type)
@@ -16,6 +17,7 @@ typedef enum ObjType {
 
 struct Obj {
   ObjType type;
+  struct Obj *next; // Next node in the intrusive linked list of objects.
 };
 
 struct ObjString {
@@ -27,8 +29,8 @@ struct ObjString {
 
 /* Directly takes ownership and creates a from the same memory that chars
  * is using. Use copyString instead if creating a copy is desired. */
-ObjString *takeString(char *chars, int length);
-ObjString *copyString(const char *chars, int length);
+ObjString *takeString(GC *gc, char *chars, int length);
+ObjString *copyString(GC *gc, const char *chars, int length);
 
 void printObject(Value value);
 

@@ -4,6 +4,7 @@
 #include <stdint.h>
 
 #include "chunk.h"
+#include "gc.h"
 #include "value.h"
 
 #define STACK_MAX 256
@@ -17,6 +18,7 @@ typedef struct VM {
   Chunk *chunk; // The chunk containing the instructions to execute.
   Value stack[STACK_MAX];
   Value *stackTop; // Points to the element one after the stacks top value.
+  GC gc; // Garbage collector to auto-reclaim memory during program execution.
 } VM;
 
 void initVM(VM *vm);

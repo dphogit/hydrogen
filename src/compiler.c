@@ -101,8 +101,9 @@ static void number(Parser *parser) {
 
 static void string(Parser *parser) {
   // +1 and -2 will trim the leading and trailing quotation marks.
-  emitConstant(parser, OBJ_VAL(copyString(parser->previous.start + 1,
-                                          parser->previous.length - 2)));
+  Value str = OBJ_VAL(copyString(parser->gc, parser->previous.start + 1,
+                                 parser->previous.length - 2));
+  emitConstant(parser, str);
 }
 
 static void grouping(Parser *parser) {
@@ -271,7 +272,7 @@ static void parsePrecedence(Parser *parser, Precedence precedence) {
 }
 
 // Returns true if the compilation succeeded.
-bool compile(const char *source, Chunk *chunk) {
+bool compile(const char *source, Chunk *chunk, GC *gc) {
   Scanner scanner;
   initScanner(&scanner, source);
 
@@ -280,6 +281,7 @@ bool compile(const char *source, Chunk *chunk) {
   parser.hadError = false;
   parser.panicMode = false;
   parser.chunk = chunk;
+  parser.gc = gc;
 
   advance(&parser);
   expression(&parser);

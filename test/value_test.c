@@ -34,6 +34,9 @@ UTEST_F(ValueTestFixture, appendValueArray) {
 }
 
 UTEST(Value, valuesEqual) {
+  GC gc;
+  initGC(&gc);
+
   Value a = BOOL_VAL(true), b = BOOL_VAL(true);
   EXPECT_TRUE(valuesEqual(a, b));
 
@@ -54,6 +57,7 @@ UTEST(Value, valuesEqual) {
   EXPECT_FALSE(valuesEqual(a, b));
 
   // Strings (different objects on heap, but we expect value equality)
-  a = OBJ_VAL(copyString("Hello", 5)), b = OBJ_VAL(copyString("Hello", 5));
+  a = OBJ_VAL(copyString(&gc, "Hello", 5));
+  b = OBJ_VAL(copyString(&gc, "Hello", 5));
   EXPECT_TRUE(valuesEqual(a, b));
 }

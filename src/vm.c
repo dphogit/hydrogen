@@ -8,15 +8,19 @@
 #include "chunk.h"
 #include "compiler.h"
 #include "debug.h"
+#include "memory.h"
 #include "object.h"
 #include "value.h"
 #include "vm.h"
 
 void resetStack(VM *vm) { vm->stackTop = vm->stack; }
 
-void initVM(VM *vm) { resetStack(vm); }
+void initVM(VM *vm) {
+  resetStack(vm);
+  initGC(&vm->gc);
+}
 
-void freeVM(VM *vm) { initVM(vm); }
+void freeVM(VM *vm) { freeGC(&vm->gc); }
 
 void push(VM *vm, Value value) {
   *vm->stackTop = value;
@@ -54,12 +58,12 @@ static void concatenate(VM *vm) {
   ObjString *b = AS_STRING(pop(vm)), *a = AS_STRING(pop(vm));
 
   int n = a->length + b->length;
-  char *buffer = malloc(sizeof(char) * (n + 1));
+  char *buffer = ALLOCATE(char, n + 1);
   memcpy(buffer, a->chars, a->length);
   memcpy(buffer + a->length, b->chars, b->length);
   buffer[n] = '\0';
 
-  push(vm, OBJ_VAL(takeString(buffer, n)));
+  push(vm, OBJ_VAL(takeString(&vm->gc, buffer, n)));
 }
 
 #ifdef DEBUG_TRACE_EXECUTION
@@ -199,13 +203,14 @@ InterpretResult interpret(const char *source) {
   Chunk chunk;
   initChunk(&chunk);
 
-  if (!compile(source, &chunk)) {
+  VM vm;
+  initVM(&vm);
+
+  if (!compile(source, &chunk, &vm.gc)) {
     freeChunk(&chunk);
     return INTERPRET_COMPILE_ERROR;
   }
 
-  VM vm;
-  initVM(&vm);
   vm.chunk = &chunk;
   vm.ip = chunk.code;
 
