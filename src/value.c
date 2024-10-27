@@ -45,8 +45,8 @@ bool valuesEqual(Value a, Value b) {
   case VAL_NIL:
     return true;
   case VAL_OBJ: {
-    ObjString *s1 = AS_STRING(a), *s2 = AS_STRING(b);
-    return s1->length == s2->length && memcmp(s1, s2, s1->length) == 0;
+    // Value and referential equality are equivalent due to string interning.
+    return AS_OBJ(a) == AS_OBJ(b);
   }
   default:
     return false; // Unreachable.

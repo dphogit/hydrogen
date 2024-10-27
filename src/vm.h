@@ -5,6 +5,7 @@
 
 #include "chunk.h"
 #include "gc.h"
+#include "table.h"
 #include "value.h"
 
 #define STACK_MAX 256
@@ -19,6 +20,7 @@ typedef struct VM {
   Value stack[STACK_MAX];
   Value *stackTop; // Points to the element one after the stacks top value.
   GC gc; // Garbage collector to auto-reclaim memory during program execution.
+  Table strings; // The string interning pool.
 } VM;
 
 void initVM(VM *vm);

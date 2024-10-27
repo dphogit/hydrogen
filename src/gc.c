@@ -27,7 +27,7 @@ void initGC(GC *gc) { gc->objects = NULL; }
 
 void freeGC(GC *gc) {
   freeObjects(gc->objects);
-  gc->objects = NULL;
+  initGC(gc);
 }
 
 // Inserts at the head of the GC's intrusive linked list of objects.

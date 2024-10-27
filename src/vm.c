@@ -18,9 +18,13 @@ void resetStack(VM *vm) { vm->stackTop = vm->stack; }
 void initVM(VM *vm) {
   resetStack(vm);
   initGC(&vm->gc);
+  initTable(&vm->strings);
 }
 
-void freeVM(VM *vm) { freeGC(&vm->gc); }
+void freeVM(VM *vm) {
+  freeTable(&vm->strings);
+  freeGC(&vm->gc);
+}
 
 void push(VM *vm, Value value) {
   *vm->stackTop = value;
@@ -63,7 +67,7 @@ static void concatenate(VM *vm) {
   memcpy(buffer + a->length, b->chars, b->length);
   buffer[n] = '\0';
 
-  push(vm, OBJ_VAL(takeString(&vm->gc, buffer, n)));
+  push(vm, OBJ_VAL(takeString(&vm->gc, &vm->strings, buffer, n)));
 }
 
 #ifdef DEBUG_TRACE_EXECUTION
@@ -206,7 +210,7 @@ InterpretResult interpret(const char *source) {
   VM vm;
   initVM(&vm);
 
-  if (!compile(source, &chunk, &vm.gc)) {
+  if (!compile(source, &chunk, &vm.gc, &vm.strings)) {
     freeChunk(&chunk);
     return INTERPRET_COMPILE_ERROR;
   }

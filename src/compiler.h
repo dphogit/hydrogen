@@ -6,6 +6,7 @@
 #include "chunk.h"
 #include "gc.h"
 #include "scanner.h"
+#include "table.h"
 #include "token.h"
 
 typedef struct Parser {
@@ -14,8 +15,9 @@ typedef struct Parser {
   Scanner scanner;
   bool hadError;
   bool panicMode;
-  Chunk *chunk; // The chunk the bytecode is being written to.
-  GC *gc;       // Will add heap-allocated objects to the GC during parsing.
+  Chunk *chunk;   // The chunk the bytecode is being written to.
+  GC *gc;         // Will add heap-allocated objects to the GC during parsing.
+  Table *strings; // String interning pool.
 } Parser;
 
 // Hydrogen's precedence levels, in order from lowest to highest.
@@ -42,6 +44,6 @@ typedef struct {
   Precedence precedence;
 } ParseRule;
 
-bool compile(const char *source, Chunk *chunk, GC *gc);
+bool compile(const char *source, Chunk *chunk, GC *gc, Table *strings);
 
 #endif

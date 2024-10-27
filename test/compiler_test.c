@@ -10,24 +10,28 @@
 struct CompilerTestFixture {
   Chunk chunk;
   GC gc;
+  Table strings;
 };
 
 UTEST_F_SETUP(CompilerTestFixture) {
   initChunk(&utest_fixture->chunk);
   initGC(&utest_fixture->gc);
+  initTable(&utest_fixture->strings);
   ASSERT_TRUE(1);
 }
 
 UTEST_F_TEARDOWN(CompilerTestFixture) {
-  freeChunk(&utest_fixture->chunk);
+  freeTable(&utest_fixture->strings);
   freeGC(&utest_fixture->gc);
+  freeChunk(&utest_fixture->chunk);
   ASSERT_TRUE(1);
 }
 
 #define OpCodeTest(source, opcode)                                             \
   Chunk chunk = utest_fixture->chunk;                                          \
                                                                                \
-  bool result = compile(source, &chunk, &utest_fixture->gc);                   \
+  bool result =                                                                \
+      compile(source, &chunk, &utest_fixture->gc, &utest_fixture->strings);    \
                                                                                \
   ASSERT_TRUE(result);                                                         \
   ASSERT_EQ(chunk.count, 2);                                                   \
@@ -44,7 +48,8 @@ UTEST_F(CompilerTestFixture, compileNil) { OpCodeTest("nil", OP_NIL); }
 UTEST_F(CompilerTestFixture, compileBang) {
   Chunk chunk = utest_fixture->chunk;
 
-  bool result = compile("!true", &chunk, &utest_fixture->gc);
+  bool result =
+      compile("!true", &chunk, &utest_fixture->gc, &utest_fixture->strings);
 
   ASSERT_TRUE(result);
 
@@ -58,7 +63,8 @@ UTEST_F(CompilerTestFixture, compileBang) {
 UTEST_F(CompilerTestFixture, compileNumber) {
   Chunk chunk = utest_fixture->chunk;
 
-  bool result = compile("69", &chunk, &utest_fixture->gc);
+  bool result =
+      compile("69", &chunk, &utest_fixture->gc, &utest_fixture->strings);
 
   ASSERT_TRUE(result);
 
@@ -79,7 +85,8 @@ UTEST_F(CompilerTestFixture, compileNumber) {
 UTEST_F(CompilerTestFixture, compileNegation) {
   Chunk chunk = utest_fixture->chunk;
 
-  bool result = compile("-69", &chunk, &utest_fixture->gc);
+  bool result =
+      compile("-69", &chunk, &utest_fixture->gc, &utest_fixture->strings);
 
   ASSERT_TRUE(result);
 
@@ -101,7 +108,8 @@ UTEST_F(CompilerTestFixture, compileNegation) {
 UTEST_F(CompilerTestFixture, compileGrouped) {
   Chunk chunk = utest_fixture->chunk;
 
-  bool result = compile("(69)", &chunk, &utest_fixture->gc);
+  bool result =
+      compile("(69)", &chunk, &utest_fixture->gc, &utest_fixture->strings);
 
   ASSERT_TRUE(result);
 
@@ -125,7 +133,8 @@ UTEST_F(CompilerTestFixture, compileGrouped) {
   sprintf(source, "69 %s 420", operator);                                      \
   source[19] = '\0';                                                           \
                                                                                \
-  bool result = compile(source, &chunk, &utest_fixture->gc);                   \
+  bool result =                                                                \
+      compile(source, &chunk, &utest_fixture->gc, &utest_fixture->strings);    \
                                                                                \
   ASSERT_TRUE(result);                                                         \
   ASSERT_EQ(chunk.count, 6);                                                   \
@@ -186,7 +195,8 @@ UTEST_F(CompilerTestFixture, compileGreaterEqual) {
 UTEST_F(CompilerTestFixture, compileString) {
   Chunk chunk = utest_fixture->chunk;
 
-  bool result = compile("\"Hello, World!\"", &chunk, &utest_fixture->gc);
+  bool result = compile("\"Hello, World!\"", &chunk, &utest_fixture->gc,
+                        &utest_fixture->strings);
 
   ASSERT_TRUE(result);
 

@@ -1,7 +1,10 @@
 #ifndef HYDRO_OBJECT_H
 #define HYDRO_OBJECT_H
 
+#include <stdint.h>
+
 #include "gc.h"
+#include "table.h"
 #include "value.h"
 
 #define OBJ_TYPE(value) (AS_OBJ(value)->type)
@@ -23,14 +26,14 @@ struct Obj {
 struct ObjString {
   Obj obj;
   int length;
-  char *chars; // Future could look to use the flexible array members techinique
-               // for efficiency to reduce a pointer indirection.
+  uint32_t hash;
+  char *chars;
 };
 
 /* Directly takes ownership and creates a from the same memory that chars
  * is using. Use copyString instead if creating a copy is desired. */
-ObjString *takeString(GC *gc, char *chars, int length);
-ObjString *copyString(GC *gc, const char *chars, int length);
+ObjString *takeString(GC *gc, Table *strings, char *chars, int length);
+ObjString *copyString(GC *gc, Table *strings, const char *chars, int length);
 
 void printObject(Value value);
 
