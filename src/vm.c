@@ -132,6 +132,9 @@ static InterpretResult run(VM *vm) {
     case OP_FALSE:
       push(vm, BOOL_VAL(false));
       break;
+    case OP_POP:
+      pop(vm);
+      break;
     case OP_ADD:
       if (IS_STRING(peek(vm)) && IS_STRING(peekn(vm, 1))) {
         concatenate(vm);
@@ -192,9 +195,11 @@ static InterpretResult run(VM *vm) {
       }
       runtimeError(vm, "Operand to negation must be a number.");
       return INTERPRET_RUNTIME_ERROR;
-    case OP_RETURN: {
+    case OP_PRINT:
       printValue(pop(vm));
       printf("\n");
+      break;
+    case OP_RETURN: {
       return INTERPRET_OK;
     }
     }

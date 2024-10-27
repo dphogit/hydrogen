@@ -34,45 +34,48 @@ UTEST_F_TEARDOWN(CompilerTestFixture) {
       compile(source, &chunk, &utest_fixture->gc, &utest_fixture->strings);    \
                                                                                \
   ASSERT_TRUE(result);                                                         \
-  ASSERT_EQ(chunk.count, 2);                                                   \
+  ASSERT_EQ(chunk.count, 3);                                                   \
                                                                                \
   ASSERT_EQ(chunk.code[0], opcode);                                            \
-  ASSERT_EQ(chunk.code[1], OP_RETURN);
+  ASSERT_EQ(chunk.code[1], OP_POP);                                            \
+  ASSERT_EQ(chunk.code[2], OP_RETURN);
 
-UTEST_F(CompilerTestFixture, compileTrue) { OpCodeTest("true", OP_TRUE); }
+UTEST_F(CompilerTestFixture, compileTrue) { OpCodeTest("true;", OP_TRUE); }
 
-UTEST_F(CompilerTestFixture, compileFalse) { OpCodeTest("false", OP_FALSE); }
+UTEST_F(CompilerTestFixture, compileFalse) { OpCodeTest("false;", OP_FALSE); }
 
-UTEST_F(CompilerTestFixture, compileNil) { OpCodeTest("nil", OP_NIL); }
+UTEST_F(CompilerTestFixture, compileNil) { OpCodeTest("nil;", OP_NIL); }
 
 UTEST_F(CompilerTestFixture, compileBang) {
   Chunk chunk = utest_fixture->chunk;
 
   bool result =
-      compile("!true", &chunk, &utest_fixture->gc, &utest_fixture->strings);
+      compile("!true;", &chunk, &utest_fixture->gc, &utest_fixture->strings);
 
   ASSERT_TRUE(result);
 
-  ASSERT_EQ(chunk.count, 3);
+  ASSERT_EQ(chunk.count, 4);
 
   ASSERT_EQ(chunk.code[0], OP_TRUE);
   ASSERT_EQ(chunk.code[1], OP_NOT);
-  ASSERT_EQ(chunk.code[2], OP_RETURN);
+  ASSERT_EQ(chunk.code[2], OP_POP);
+  ASSERT_EQ(chunk.code[3], OP_RETURN);
 }
 
 UTEST_F(CompilerTestFixture, compileNumber) {
   Chunk chunk = utest_fixture->chunk;
 
   bool result =
-      compile("69", &chunk, &utest_fixture->gc, &utest_fixture->strings);
+      compile("69;", &chunk, &utest_fixture->gc, &utest_fixture->strings);
 
   ASSERT_TRUE(result);
 
-  ASSERT_EQ(chunk.count, 3);
+  ASSERT_EQ(chunk.count, 4);
 
   ASSERT_EQ(chunk.code[0], OP_CONSTANT);
   ASSERT_EQ(chunk.code[1], 0);
-  ASSERT_EQ(chunk.code[2], OP_RETURN);
+  ASSERT_EQ(chunk.code[2], OP_POP);
+  ASSERT_EQ(chunk.code[3], OP_RETURN);
 
   ASSERT_EQ(chunk.constants.count, 1);
   ASSERT_EQ(AS_NUMBER(chunk.constants.values[0]), 69);
@@ -86,16 +89,17 @@ UTEST_F(CompilerTestFixture, compileNegation) {
   Chunk chunk = utest_fixture->chunk;
 
   bool result =
-      compile("-69", &chunk, &utest_fixture->gc, &utest_fixture->strings);
+      compile("-69;", &chunk, &utest_fixture->gc, &utest_fixture->strings);
 
   ASSERT_TRUE(result);
 
-  ASSERT_EQ(chunk.count, 4);
+  ASSERT_EQ(chunk.count, 5);
 
   ASSERT_EQ(chunk.code[0], OP_CONSTANT);
   ASSERT_EQ(chunk.code[1], 0);
   ASSERT_EQ(chunk.code[2], OP_NEGATE);
-  ASSERT_EQ(chunk.code[3], OP_RETURN);
+  ASSERT_EQ(chunk.code[3], OP_POP);
+  ASSERT_EQ(chunk.code[4], OP_RETURN);
 
   ASSERT_EQ(chunk.constants.count, 1);
   ASSERT_EQ(AS_NUMBER(chunk.constants.values[0]), 69);
@@ -109,15 +113,16 @@ UTEST_F(CompilerTestFixture, compileGrouped) {
   Chunk chunk = utest_fixture->chunk;
 
   bool result =
-      compile("(69)", &chunk, &utest_fixture->gc, &utest_fixture->strings);
+      compile("(69);", &chunk, &utest_fixture->gc, &utest_fixture->strings);
 
   ASSERT_TRUE(result);
 
-  ASSERT_EQ(chunk.count, 3);
+  ASSERT_EQ(chunk.count, 4);
 
   ASSERT_EQ(chunk.code[0], OP_CONSTANT);
   ASSERT_EQ(chunk.code[1], 0);
-  ASSERT_EQ(chunk.code[2], OP_RETURN);
+  ASSERT_EQ(chunk.code[2], OP_POP);
+  ASSERT_EQ(chunk.code[3], OP_RETURN);
 
   ASSERT_EQ(chunk.constants.count, 1);
   ASSERT_EQ(AS_NUMBER(chunk.constants.values[0]), 69);
@@ -130,21 +135,22 @@ UTEST_F(CompilerTestFixture, compileGrouped) {
 #define BinaryExpressionTest(operator, opcode)                                 \
   Chunk chunk = utest_fixture->chunk;                                          \
   char source[20];                                                             \
-  sprintf(source, "69 %s 420", operator);                                      \
+  sprintf(source, "69 %s 420;", operator);                                     \
   source[19] = '\0';                                                           \
                                                                                \
   bool result =                                                                \
       compile(source, &chunk, &utest_fixture->gc, &utest_fixture->strings);    \
                                                                                \
   ASSERT_TRUE(result);                                                         \
-  ASSERT_EQ(chunk.count, 6);                                                   \
+  ASSERT_EQ(chunk.count, 7);                                                   \
                                                                                \
   ASSERT_EQ(chunk.code[0], OP_CONSTANT);                                       \
   ASSERT_EQ(chunk.code[1], 0);                                                 \
   ASSERT_EQ(chunk.code[2], OP_CONSTANT);                                       \
   ASSERT_EQ(chunk.code[3], 1);                                                 \
   ASSERT_EQ(chunk.code[4], opcode);                                            \
-  ASSERT_EQ(chunk.code[5], OP_RETURN);                                         \
+  ASSERT_EQ(chunk.code[5], OP_POP);                                            \
+  ASSERT_EQ(chunk.code[6], OP_RETURN);                                         \
                                                                                \
   ASSERT_EQ(chunk.constants.count, 2);                                         \
   ASSERT_EQ(AS_NUMBER(chunk.constants.values[0]), 69);                         \
@@ -195,16 +201,37 @@ UTEST_F(CompilerTestFixture, compileGreaterEqual) {
 UTEST_F(CompilerTestFixture, compileString) {
   Chunk chunk = utest_fixture->chunk;
 
-  bool result = compile("\"Hello, World!\"", &chunk, &utest_fixture->gc,
+  bool result = compile("\"Hello, World!\";", &chunk, &utest_fixture->gc,
                         &utest_fixture->strings);
 
   ASSERT_TRUE(result);
 
-  ASSERT_EQ(chunk.count, 3);
+  ASSERT_EQ(chunk.count, 4);
 
   ASSERT_EQ(chunk.code[0], OP_CONSTANT);
   ASSERT_EQ(chunk.code[1], 0);
-  ASSERT_EQ(chunk.code[2], OP_RETURN);
+  ASSERT_EQ(chunk.code[2], OP_POP);
+  ASSERT_EQ(chunk.code[3], OP_RETURN);
+
+  ASSERT_EQ(chunk.constants.count, 1);
+  ASSERT_TRUE(IS_STRING(chunk.constants.values[0]));
+  ASSERT_STREQ(AS_CSTRING(chunk.constants.values[0]), "Hello, World!");
+}
+
+UTEST_F(CompilerTestFixture, compilePrint) {
+  Chunk chunk = utest_fixture->chunk;
+
+  bool result = compile("print \"Hello, World!\";", &chunk, &utest_fixture->gc,
+                        &utest_fixture->strings);
+
+  ASSERT_TRUE(result);
+
+  ASSERT_EQ(chunk.count, 4);
+
+  ASSERT_EQ(chunk.code[0], OP_CONSTANT);
+  ASSERT_EQ(chunk.code[1], 0);
+  ASSERT_EQ(chunk.code[2], OP_PRINT);
+  ASSERT_EQ(chunk.code[3], OP_RETURN);
 
   ASSERT_EQ(chunk.constants.count, 1);
   ASSERT_TRUE(IS_STRING(chunk.constants.values[0]));

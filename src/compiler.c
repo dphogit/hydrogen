@@ -20,7 +20,7 @@ static void errorAt(Parser *parser, Token *token, const char *message) {
   fprintf(stderr, "[line %d] Error", token->line);
 
   if (token->type == TOKEN_EOF) {
-    fprintf(stderr, "at end");
+    fprintf(stderr, " at end");
   } else if (token->type == TOKEN_ERROR) {
   } else {
     fprintf(stderr, " at '%.*s'", token->length, token->start);
@@ -59,6 +59,18 @@ static void consume(Parser *parser, TokenType type, const char *message) {
   errorAtCurrent(parser, message);
 }
 
+static bool check(Parser *parser, TokenType type) {
+  return parser->current.type == type;
+}
+
+static bool match(Parser *parser, TokenType type) {
+  if (!check(parser, type))
+    return false;
+
+  advance(parser);
+  return true;
+}
+
 static void emitByte(Parser *parser, uint8_t byte) {
   writeChunk(parser->chunk, byte, parser->previous.line);
 }
@@ -92,6 +104,8 @@ static void endCompiler(Parser *parser) {
 
 static ParseRule *getRule(TokenType type);
 static void expression(Parser *parser);
+static void statement(Parser *parser);
+static void declaration(Parser *parser);
 static void parsePrecedence(Parser *parser, Precedence precedence);
 
 static void number(Parser *parser) {
@@ -255,6 +269,59 @@ static void expression(Parser *parser) {
   parsePrecedence(parser, PREC_ASSIGNMENT);
 }
 
+// Exit panic mode when reaching a synchronization point. These are identified
+// as statement boundaries, which include semi-colons ending a statement, or a
+// token that begins a statement.
+static void synchronize(Parser *parser) {
+  parser->panicMode = false;
+
+  while (parser->current.type != TOKEN_EOF) {
+    if (parser->previous.type == TOKEN_SEMICOLON)
+      return;
+
+    switch (parser->current.type) {
+    case TOKEN_CLASS:
+    case TOKEN_FUN:
+    case TOKEN_VAR:
+    case TOKEN_FOR:
+    case TOKEN_IF:
+    case TOKEN_WHILE:
+    case TOKEN_PRINT:
+    case TOKEN_RETURN:
+      return;
+    default:; // Do nothing.
+    }
+
+    advance(parser);
+  }
+}
+
+static void declaration(Parser *parser) {
+  statement(parser);
+
+  if (parser->panicMode)
+    synchronize(parser);
+}
+
+static void printStatement(Parser *parser) {
+  expression(parser);
+  consume(parser, TOKEN_SEMICOLON, "Expect ';' after value.");
+  emitByte(parser, OP_PRINT);
+}
+
+static void expressionStatement(Parser *parser) {
+  expression(parser);
+  consume(parser, TOKEN_SEMICOLON, "Expect ';' after value.");
+  emitByte(parser, OP_POP);
+}
+
+static void statement(Parser *parser) {
+  if (match(parser, TOKEN_PRINT))
+    printStatement(parser);
+  else
+    expressionStatement(parser);
+}
+
 static void parsePrecedence(Parser *parser, Precedence precedence) {
   advance(parser);
   ParseFn prefixRule = getRule(parser->previous.type)->prefix;
@@ -286,8 +353,11 @@ bool compile(const char *source, Chunk *chunk, GC *gc, Table *strings) {
   parser.strings = strings;
 
   advance(&parser);
-  expression(&parser);
-  consume(&parser, TOKEN_EOF, "Expect end of expression.");
+
+  while (!match(&parser, TOKEN_EOF)) {
+    declaration(&parser);
+  }
+
   endCompiler(&parser);
 
   return !parser.hadError;

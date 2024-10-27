@@ -26,13 +26,11 @@ void freeChunk(Chunk *chunk);
 int addConstant(Chunk *chunk, Value value);
 
 typedef enum OpCode {
-  // Literal
   OP_CONSTANT,
   OP_NIL,
   OP_TRUE,
   OP_FALSE,
-
-  // Binary
+  OP_POP,
   OP_ADD,
   OP_SUBTRACT,
   OP_MULTIPLY,
@@ -43,11 +41,9 @@ typedef enum OpCode {
   OP_NEQ,
   OP_GT,
   OP_GTE,
-
-  // Unary
   OP_NOT,
   OP_NEGATE,
-
+  OP_PRINT,
   OP_RETURN
 } OpCode;
 
