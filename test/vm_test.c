@@ -1,23 +1,29 @@
 #include "utest.h"
 #include "vm.h"
 
-UTEST(VM, stackOperations) {
+struct VMTestFixture {
   VM vm;
-  initVM(&vm);
+};
 
-  push(&vm, NUMBER_VAL(69.0));
-  ASSERT_EQ(AS_NUMBER(*(vm.stackTop - 1)), 69.0);
-
-  Value popped = pop(&vm);
-  ASSERT_EQ(AS_NUMBER(popped), 69.0);
-
-  freeVM(&vm);
+UTEST_F_SETUP(VMTestFixture) {
+  initVM(&utest_fixture->vm);
+  ASSERT_TRUE(1);
 }
 
-UTEST(VM, expressionStatements) {
-  VM vm;
-  initVM(&vm);
+UTEST_F_TEARDOWN(VMTestFixture) {
+  freeVM(&utest_fixture->vm);
+  ASSERT_TRUE(1);
+}
 
+UTEST_F(VMTestFixture, stackOperations) {
+  push(&utest_fixture->vm, NUMBER_VAL(69.0));
+  ASSERT_EQ(AS_NUMBER(*(utest_fixture->vm.stackTop - 1)), 69.0);
+
+  Value popped = pop(&utest_fixture->vm);
+  ASSERT_EQ(AS_NUMBER(popped), 69.0);
+}
+
+UTEST_F(VMTestFixture, expressionStatements) {
   char *expressionStmts[] = {
       "3 + 8;",    "9 - 4;", "5 * 8;",  "10 / 10;",
       "-(5 - 2);", "false;", "true;",   "nil;",
@@ -26,9 +32,18 @@ UTEST(VM, expressionStatements) {
 
   int n = sizeof(expressionStmts) / sizeof(expressionStmts[0]);
   for (int i = 0; i < n; i++) {
-    InterpretResult result = interpret(expressionStmts[i]);
+    InterpretResult result = interpret(&utest_fixture->vm, expressionStmts[i]);
     EXPECT_EQ(result, (InterpretResult)INTERPRET_OK);
   }
+}
 
-  freeVM(&vm);
+// Assert one instance of VM across interpret calls runs ok.
+// Example scenario would be a REPL environment where var is declared in one
+// interpret call, then another interpret call uses the declared variable.
+UTEST_F(VMTestFixture, globalVariable) {
+  InterpretResult result = interpret(&utest_fixture->vm, "var x = 6.9;");
+  ASSERT_EQ(result, (InterpretResult)INTERPRET_OK);
+
+  result = interpret(&utest_fixture->vm, "x;");
+  ASSERT_EQ(result, (InterpretResult)INTERPRET_OK);
 }

@@ -19,9 +19,11 @@ void initVM(VM *vm) {
   resetStack(vm);
   initGC(&vm->gc);
   initTable(&vm->strings);
+  initTable(&vm->globals);
 }
 
 void freeVM(VM *vm) {
+  freeTable(&vm->globals);
   freeTable(&vm->strings);
   freeGC(&vm->gc);
 }
@@ -92,6 +94,10 @@ static inline Value readConstant(VM *vm) {
   return vm->chunk->constants.values[readByte(vm)];
 }
 
+static inline ObjString *readString(VM *vm) {
+  return AS_STRING(readConstant(vm));
+}
+
 static bool binaryOperandsAreNumbers(VM *vm) {
   if (IS_NUMBER(peek(vm)) && IS_NUMBER(peekn(vm, 1)))
     return true;
@@ -135,6 +141,33 @@ static InterpretResult run(VM *vm) {
     case OP_POP:
       pop(vm);
       break;
+    case OP_DEFINE_GLOBAL: {
+      ObjString *name = readString(vm);
+      tableSet(&vm->globals, name, peek(vm));
+      pop(vm);
+      break;
+    }
+    case OP_GET_GLOBAL: {
+      ObjString *name = readString(vm);
+      Value value;
+      if (tableGet(&vm->globals, name, &value)) {
+        push(vm, value);
+        break;
+      }
+      runtimeError(vm, "Undefined variable '%s'.", name->chars);
+      return INTERPRET_RUNTIME_ERROR;
+    }
+    case OP_SET_GLOBAL: {
+      ObjString *name = readString(vm);
+      if (tableSet(&vm->globals, name, peek(vm))) {
+        // A new key is inserted if not already existing. Remove it in this
+        // invalid case where we are assigning to an undefined variable.
+        tableDelete(&vm->globals, name);
+        runtimeError(vm, "Undefined variable '%s'.", name->chars);
+        return INTERPRET_RUNTIME_ERROR;
+      }
+      break;
+    }
     case OP_ADD:
       if (IS_STRING(peek(vm)) && IS_STRING(peekn(vm, 1))) {
         concatenate(vm);
@@ -208,25 +241,21 @@ static InterpretResult run(VM *vm) {
 #undef BINARY_OP
 }
 
-InterpretResult interpret(const char *source) {
+InterpretResult interpret(VM *vm, const char *source) {
   Chunk chunk;
   initChunk(&chunk);
 
-  VM vm;
-  initVM(&vm);
-
-  if (!compile(source, &chunk, &vm.gc, &vm.strings)) {
+  if (!compile(source, &chunk, &vm->gc, &vm->strings)) {
     freeChunk(&chunk);
     return INTERPRET_COMPILE_ERROR;
   }
 
-  vm.chunk = &chunk;
-  vm.ip = chunk.code;
+  vm->chunk = &chunk;
+  vm->ip = chunk.code;
 
-  InterpretResult result = run(&vm);
+  InterpretResult result = run(vm);
 
-  freeChunk(vm.chunk);
-  freeVM(&vm);
+  freeChunk(vm->chunk);
 
   return result;
 }

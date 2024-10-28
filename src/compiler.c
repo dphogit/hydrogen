@@ -80,15 +80,22 @@ static void emitBytes(Parser *parser, uint8_t byte1, uint8_t byte2) {
   writeChunk(parser->chunk, byte2, parser->previous.line);
 }
 
-static void emitConstant(Parser *parser, Value value) {
+static uint8_t makeConstant(Parser *parser, Value value) {
   int constantIndex = addConstant(parser->chunk, value);
+
   if (constantIndex > UINT8_MAX) {
-    // Each instruction in the chunk's can only be 1 byte thus the chunk
-    // can only have 256 constants due to this max size of the index.
+    // Each instruction in the chunk's can only be 1 byte, so a chunk can only
+    // have 256 constants due to the index being limited to this maximum.
     error(parser, "Too many constants in one chunk.");
     constantIndex = 0;
   }
-  emitBytes(parser, OP_CONSTANT, (uint8_t)constantIndex);
+
+  return (uint8_t)constantIndex;
+}
+
+static void emitConstant(Parser *parser, Value value) {
+  uint8_t constantIndex = makeConstant(parser, value);
+  emitBytes(parser, OP_CONSTANT, constantIndex);
 }
 
 static void endCompiler(Parser *parser) {
@@ -108,12 +115,27 @@ static void statement(Parser *parser);
 static void declaration(Parser *parser);
 static void parsePrecedence(Parser *parser, Precedence precedence);
 
-static void number(Parser *parser) {
+static uint8_t identifierConstant(Parser *parser, Token *name) {
+  Value value = OBJ_VAL(
+      copyString(parser->gc, parser->strings, name->start, name->length));
+  return makeConstant(parser, value);
+}
+
+static uint8_t parseVariable(Parser *parser, const char *errorMessage) {
+  consume(parser, TOKEN_IDENTIFIER, errorMessage);
+  return identifierConstant(parser, &parser->previous);
+}
+
+static void defineVariable(Parser *parser, uint8_t globalIndex) {
+  emitBytes(parser, OP_DEFINE_GLOBAL, globalIndex);
+}
+
+static void number(Parser *parser, __attribute__((unused)) bool canAssign) {
   double value = strtod(parser->previous.start, NULL);
   emitConstant(parser, NUMBER_VAL(value));
 }
 
-static void string(Parser *parser) {
+static void string(Parser *parser, __attribute__((unused)) bool canAssign) {
   // +1 and -2 will trim the leading and trailing quotation marks.
   Value str = OBJ_VAL(copyString(parser->gc, parser->strings,
                                  parser->previous.start + 1,
@@ -121,12 +143,28 @@ static void string(Parser *parser) {
   emitConstant(parser, str);
 }
 
-static void grouping(Parser *parser) {
+static void namedVariable(Parser *parser, Token name, bool canAssign) {
+  uint8_t identifierIndex = identifierConstant(parser, &name);
+
+  // Only consume '=' when in a low-precedence expression (flag short-circuits).
+  if (canAssign && match(parser, TOKEN_EQUAL)) {
+    expression(parser);
+    emitBytes(parser, OP_SET_GLOBAL, identifierIndex);
+  } else {
+    emitBytes(parser, OP_GET_GLOBAL, identifierIndex);
+  }
+}
+
+static void variable(Parser *parser, bool canAssign) {
+  namedVariable(parser, parser->previous, canAssign);
+}
+
+static void grouping(Parser *parser, __attribute__((unused)) bool canAssign) {
   expression(parser);
   consume(parser, TOKEN_RIGHT_PAREN, "Expect ')' after expression.");
 }
 
-static void unary(Parser *parser) {
+static void unary(Parser *parser, __attribute__((unused)) bool canAssign) {
   TokenType operatorType = parser->previous.type;
   parsePrecedence(parser, PREC_UNARY); // Parse (single) right operand.
 
@@ -141,7 +179,7 @@ static void unary(Parser *parser) {
   }
 }
 
-static void binary(Parser *parser) {
+static void binary(Parser *parser, __attribute__((unused)) bool canAssign) {
   TokenType operatorType = parser->previous.type;
   ParseRule *rule = getRule(operatorType);
 
@@ -185,7 +223,7 @@ static void binary(Parser *parser) {
   }
 }
 
-static void literal(Parser *parser) {
+static void literal(Parser *parser, __attribute__((unused)) bool canAssign) {
   switch (parser->previous.type) {
   case TOKEN_FALSE:
     emitByte(parser, OP_FALSE);
@@ -257,7 +295,7 @@ ParseRule rules[] = {
     // Literals
     [TOKEN_STRING] = {string, NULL, PREC_NONE},
     [TOKEN_NUMBER] = {number, NULL, PREC_NONE},
-    [TOKEN_IDENTIFIER] = {NULL, NULL, PREC_NONE},
+    [TOKEN_IDENTIFIER] = {variable, NULL, PREC_NONE},
 
     [TOKEN_ERROR] = {NULL, NULL, PREC_NONE},
     [TOKEN_EOF] = {NULL, NULL, PREC_NONE},
@@ -296,8 +334,26 @@ static void synchronize(Parser *parser) {
   }
 }
 
+static void varDeclaration(Parser *parser) {
+  uint8_t globalIndex = parseVariable(parser, "Expect variable name.");
+
+  if (match(parser, TOKEN_EQUAL)) {
+    expression(parser);
+  } else {
+    emitByte(parser, OP_NIL);
+  }
+
+  consume(parser, TOKEN_SEMICOLON, "Expect ';' after variable declaration.");
+
+  defineVariable(parser, globalIndex);
+}
+
 static void declaration(Parser *parser) {
-  statement(parser);
+  if (match(parser, TOKEN_VAR)) {
+    varDeclaration(parser);
+  } else {
+    statement(parser);
+  }
 
   if (parser->panicMode)
     synchronize(parser);
@@ -330,12 +386,19 @@ static void parsePrecedence(Parser *parser, Precedence precedence) {
     return;
   }
 
-  prefixRule(parser);
+  // PREC_ASSIGNMENT is the lowest-precedence expression, so assignment is only
+  // allowed when parsing an assignment expression or top-level expression.
+  bool canAssign = precedence <= PREC_ASSIGNMENT;
+  prefixRule(parser, canAssign);
 
   while (precedence <= getRule(parser->current.type)->precedence) {
     advance(parser);
     ParseFn infixRule = getRule(parser->previous.type)->infix;
-    infixRule(parser);
+    infixRule(parser, canAssign);
+  }
+
+  if (canAssign && match(parser, TOKEN_EQUAL)) {
+    error(parser, "Invalid assignment target.");
   }
 }
 

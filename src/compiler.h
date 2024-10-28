@@ -36,7 +36,7 @@ typedef enum Precedence {
   PREC_PRIMARY
 } Precedence;
 
-typedef void (*ParseFn)(Parser *parser);
+typedef void (*ParseFn)(Parser *parser, bool canAssign);
 
 typedef struct {
   ParseFn prefix;

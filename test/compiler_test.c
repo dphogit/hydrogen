@@ -237,3 +237,26 @@ UTEST_F(CompilerTestFixture, compilePrint) {
   ASSERT_TRUE(IS_STRING(chunk.constants.values[0]));
   ASSERT_STREQ(AS_CSTRING(chunk.constants.values[0]), "Hello, World!");
 }
+
+UTEST_F(CompilerTestFixture, compileVariable) {
+  Chunk chunk = utest_fixture->chunk;
+
+  bool result = compile("var x = 6.9;", &chunk, &utest_fixture->gc,
+                        &utest_fixture->strings);
+
+  ASSERT_TRUE(result);
+
+  ASSERT_EQ(chunk.count, 5);
+
+  ASSERT_EQ(chunk.code[0], OP_CONSTANT);
+  ASSERT_EQ(chunk.code[1], 1);
+  ASSERT_EQ(chunk.code[2], OP_DEFINE_GLOBAL);
+  ASSERT_EQ(chunk.code[3], 0);
+  ASSERT_EQ(chunk.code[4], OP_RETURN);
+
+  ASSERT_EQ(chunk.constants.count, 2);
+  ASSERT_TRUE(IS_STRING(chunk.constants.values[0]));
+  ASSERT_STREQ(AS_CSTRING(chunk.constants.values[0]), "x");
+  ASSERT_TRUE(IS_NUMBER(chunk.constants.values[1]));
+  ASSERT_EQ(AS_NUMBER(chunk.constants.values[1]), 6.9);
+}

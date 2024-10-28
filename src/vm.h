@@ -16,11 +16,12 @@
  */
 typedef struct VM {
   uint8_t *ip;  // Pointer to the next instruction to be executed.
-  Chunk *chunk; // The chunk containing the instructions to execute.
+  Chunk *chunk; // Containing the instructions to execute.
   Value stack[STACK_MAX];
   Value *stackTop; // Points to the element one after the stacks top value.
-  GC gc; // Garbage collector to auto-reclaim memory during program execution.
-  Table strings; // The string interning pool.
+  GC gc;           // Auto-reclaim memory during program execution.
+  Table strings;   // The string interning pool.
+  Table globals;   // Global variables.
 } VM;
 
 void initVM(VM *vm);
@@ -35,6 +36,6 @@ typedef enum InterpretResult {
   INTERPRET_RUNTIME_ERROR
 } InterpretResult;
 
-InterpretResult interpret(const char *source);
+InterpretResult interpret(VM *vm, const char *source);
 
 #endif

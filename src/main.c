@@ -12,7 +12,7 @@
 #define EX_SOFTWARE 70
 #define EX_IOERR 74
 
-void runREPL() {
+void runREPL(VM *vm) {
   size_t n = 0;
   char *line = NULL;
 
@@ -20,7 +20,7 @@ void runREPL() {
   while (true) {
     printf("> ");
     if (getline(&line, &n, stdin) != -1) {
-      interpret(line);
+      interpret(vm, line);
     }
   }
 }
@@ -53,7 +53,7 @@ const char *readFile(const char *filename) {
   return buffer;
 }
 
-void runFile(const char *filename) {
+void runFile(VM *vm, const char *filename) {
   char *dot = strrchr(filename, '.');
   if (dot == NULL || (strcmp("hydro", dot + 1) != 0)) {
     fprintf(stderr, "File must have .hydro extension.\n");
@@ -61,7 +61,7 @@ void runFile(const char *filename) {
   }
 
   const char *source = readFile(filename);
-  InterpretResult result = interpret(source);
+  InterpretResult result = interpret(vm, source);
   free((void *)source);
 
   if (result == INTERPRET_COMPILE_ERROR)
@@ -79,14 +79,18 @@ void usage() {
 }
 
 int main(int argc, char *argv[]) {
+  VM vm;
+  initVM(&vm);
+
   if (argc == 1) {
-    runREPL();
+    runREPL(&vm);
   } else if (argc == 2) {
-    runFile(argv[1]);
+    runFile(&vm, argv[1]);
   } else {
     usage();
     return EX_USAGE;
   }
 
+  freeVM(&vm);
   return EXIT_SUCCESS;
 }
