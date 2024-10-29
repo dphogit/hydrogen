@@ -238,7 +238,7 @@ UTEST_F(CompilerTestFixture, compilePrint) {
   ASSERT_STREQ(AS_CSTRING(chunk.constants.values[0]), "Hello, World!");
 }
 
-UTEST_F(CompilerTestFixture, compileVariable) {
+UTEST_F(CompilerTestFixture, compileGlobalVariable) {
   Chunk chunk = utest_fixture->chunk;
 
   bool result = compile("var x = 6.9;", &chunk, &utest_fixture->gc,
@@ -259,4 +259,36 @@ UTEST_F(CompilerTestFixture, compileVariable) {
   ASSERT_STREQ(AS_CSTRING(chunk.constants.values[0]), "x");
   ASSERT_TRUE(IS_NUMBER(chunk.constants.values[1]));
   ASSERT_EQ(AS_NUMBER(chunk.constants.values[1]), 6.9);
+}
+
+UTEST_F(CompilerTestFixture, compileLocalVariableGetAndSet) {
+  Chunk chunk = utest_fixture->chunk;
+
+  bool result = compile("{ var x = 6.9; x = 4.20; }", &chunk,
+                        &utest_fixture->gc, &utest_fixture->strings);
+
+  ASSERT_TRUE(result);
+
+  ASSERT_EQ(chunk.count, 9);
+  ASSERT_EQ(chunk.constants.count, 2);
+
+  // var x = 6.9;
+  ASSERT_EQ(chunk.code[0], OP_CONSTANT);
+  ASSERT_EQ(chunk.code[1], 0);
+  ASSERT_TRUE(IS_NUMBER(chunk.constants.values[0]));
+  ASSERT_EQ(AS_NUMBER(chunk.constants.values[0]), 6.9);
+
+  // x = 4.20
+  ASSERT_EQ(chunk.code[2], OP_CONSTANT);
+  ASSERT_EQ(chunk.code[3], 1);
+  ASSERT_EQ(chunk.code[4], OP_SET_LOCAL);
+  ASSERT_EQ(chunk.code[5], 0);
+  ASSERT_TRUE(IS_NUMBER(chunk.constants.values[1]));
+  ASSERT_EQ(AS_NUMBER(chunk.constants.values[1]), 4.20);
+
+  // Variable are popped of the stack when exited out of the block scope
+  ASSERT_EQ(chunk.code[6], OP_POP);
+  ASSERT_EQ(chunk.code[7], OP_POP);
+
+  ASSERT_EQ(chunk.code[8], OP_RETURN);
 }

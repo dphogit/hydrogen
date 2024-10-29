@@ -2,6 +2,7 @@
 #include <stdint.h>
 #include <stdio.h>
 #include <stdlib.h>
+#include <string.h>
 
 #include "chunk.h"
 #include "compiler.h"
@@ -10,7 +11,13 @@
 #include "scanner.h"
 #include "token.h"
 
-// ----- Parser Utilities -----
+// A signal that local variable could not be resolved, so assume to be global.
+#define NOT_RESOLVE_LOCAL -1
+
+// A sentinel value for variable scope depth, marking it as not defined yet.
+#define UNINITIALIZED_DEPTH -1
+
+// ----- Parser & Compiler Utilities -----
 
 static void errorAt(Parser *parser, Token *token, const char *message) {
   if (parser->panicMode)
@@ -107,7 +114,45 @@ static void endCompiler(Parser *parser) {
 #endif
 }
 
-// ----- Precedence Rule Parsing -----
+static void beginScope(Compiler *compiler) { compiler->scopeDepth++; }
+
+static void endScope(Parser *parser) {
+  Compiler *compiler = &parser->compiler;
+  compiler->scopeDepth--;
+
+  // Discard the local variables by decrementing the length of the compiler's
+  // locals array. Also, pop from the stack as slot is no longer needed.
+  while (compiler->localCount > 0 &&
+         compiler->locals[compiler->localCount - 1].depth >
+             compiler->scopeDepth) {
+    emitByte(parser, OP_POP); // TODO: OP_POPN instruction for VM optimization.
+    compiler->localCount--;
+  }
+}
+
+static bool identifiersEqual(Token *a, Token *b) {
+  return a->length == b->length && memcmp(a->start, b->start, a->length) == 0;
+}
+
+static int resolveLocal(Parser *parser, Token *name) {
+  Compiler *compiler = &parser->compiler;
+
+  // Walk backwards to find last declared variable with identifier. Ensures
+  // that inner local variables correctly shadow locals from surrounding scope.
+  for (int i = compiler->localCount - 1; i >= 0; i--) {
+    Local *local = &compiler->locals[i];
+    if (identifiersEqual(&local->name, name)) {
+      if (local->depth == UNINITIALIZED_DEPTH) {
+        error(parser, "Can't read local variable in its own initializer.");
+      }
+      return i;
+    }
+  }
+
+  return NOT_RESOLVE_LOCAL;
+}
+
+// ----- Rule Parsing -----
 
 static ParseRule *getRule(TokenType type);
 static void expression(Parser *parser);
@@ -121,12 +166,66 @@ static uint8_t identifierConstant(Parser *parser, Token *name) {
   return makeConstant(parser, value);
 }
 
+static void addLocal(Parser *parser, Token name) {
+  Compiler *compiler = &parser->compiler;
+
+  if (compiler->localCount == UINT8_COUNT) {
+    error(parser, "Too many local variables in function.");
+    return;
+  }
+
+  Local *local = &compiler->locals[compiler->localCount++];
+  local->name = name;
+  local->depth = UNINITIALIZED_DEPTH;
+}
+
+static void declareVariable(Parser *parser) {
+  Compiler *compiler = &parser->compiler;
+
+  if (compiler->scopeDepth == GLOBAL_SCOPE_DEPTH)
+    return;
+
+  Token *name = &parser->previous;
+
+  // Look backward of local vars (as they are appended to the the array when
+  // declared) to make sure var has not already been declared in the same scope.
+  for (int i = compiler->localCount - 1; i >= 0; i--) {
+    Local *local = &compiler->locals[i];
+    if (local->depth != UNINITIALIZED_DEPTH &&
+        local->depth < compiler->scopeDepth) {
+      break;
+    }
+
+    if (identifiersEqual(name, &local->name)) {
+      error(parser, "Already a variable with this name in this scope.");
+    }
+  }
+
+  addLocal(parser, *name);
+}
+
 static uint8_t parseVariable(Parser *parser, const char *errorMessage) {
   consume(parser, TOKEN_IDENTIFIER, errorMessage);
+
+  declareVariable(parser);
+
+  // Locals are resolved compiled time, not runtime unlike global variables.
+  if (parser->compiler.scopeDepth > GLOBAL_SCOPE_DEPTH)
+    return 0;
+
   return identifierConstant(parser, &parser->previous);
 }
 
+static void markInitialized(Compiler *compiler) {
+  compiler->locals[compiler->localCount - 1].depth = compiler->scopeDepth;
+}
+
 static void defineVariable(Parser *parser, uint8_t globalIndex) {
+  if (parser->compiler.scopeDepth > GLOBAL_SCOPE_DEPTH) {
+    markInitialized(&parser->compiler);
+    return;
+  }
+
   emitBytes(parser, OP_DEFINE_GLOBAL, globalIndex);
 }
 
@@ -144,14 +243,23 @@ static void string(Parser *parser, __attribute__((unused)) bool canAssign) {
 }
 
 static void namedVariable(Parser *parser, Token name, bool canAssign) {
-  uint8_t identifierIndex = identifierConstant(parser, &name);
+  uint8_t getOp, setOp;
+  int arg = resolveLocal(parser, &name);
+  if (arg != NOT_RESOLVE_LOCAL) {
+    getOp = OP_GET_LOCAL;
+    setOp = OP_SET_LOCAL;
+  } else {
+    arg = identifierConstant(parser, &name);
+    getOp = OP_GET_GLOBAL;
+    setOp = OP_SET_GLOBAL;
+  }
 
   // Only consume '=' when in a low-precedence expression (flag short-circuits).
   if (canAssign && match(parser, TOKEN_EQUAL)) {
     expression(parser);
-    emitBytes(parser, OP_SET_GLOBAL, identifierIndex);
+    emitBytes(parser, setOp, (uint8_t)arg);
   } else {
-    emitBytes(parser, OP_GET_GLOBAL, identifierIndex);
+    emitBytes(parser, getOp, (uint8_t)arg);
   }
 }
 
@@ -307,6 +415,14 @@ static void expression(Parser *parser) {
   parsePrecedence(parser, PREC_ASSIGNMENT);
 }
 
+static void block(Parser *parser) {
+  while (!check(parser, TOKEN_RIGHT_BRACE) && !check(parser, TOKEN_EOF)) {
+    declaration(parser);
+  }
+
+  consume(parser, TOKEN_RIGHT_BRACE, "Expect '}' after block.");
+}
+
 // Exit panic mode when reaching a synchronization point. These are identified
 // as statement boundaries, which include semi-colons ending a statement, or a
 // token that begins a statement.
@@ -335,8 +451,9 @@ static void synchronize(Parser *parser) {
 }
 
 static void varDeclaration(Parser *parser) {
-  uint8_t globalIndex = parseVariable(parser, "Expect variable name.");
+  uint8_t constantIndex = parseVariable(parser, "Expect variable name.");
 
+  // Compile initializer to variable, defaulting to nil.
   if (match(parser, TOKEN_EQUAL)) {
     expression(parser);
   } else {
@@ -345,7 +462,7 @@ static void varDeclaration(Parser *parser) {
 
   consume(parser, TOKEN_SEMICOLON, "Expect ';' after variable declaration.");
 
-  defineVariable(parser, globalIndex);
+  defineVariable(parser, constantIndex);
 }
 
 static void declaration(Parser *parser) {
@@ -372,10 +489,15 @@ static void expressionStatement(Parser *parser) {
 }
 
 static void statement(Parser *parser) {
-  if (match(parser, TOKEN_PRINT))
+  if (match(parser, TOKEN_PRINT)) {
     printStatement(parser);
-  else
+  } else if (match(parser, TOKEN_LEFT_BRACE)) {
+    beginScope(&parser->compiler);
+    block(parser);
+    endScope(parser);
+  } else {
     expressionStatement(parser);
+  }
 }
 
 static void parsePrecedence(Parser *parser, Precedence precedence) {
@@ -407,8 +529,13 @@ bool compile(const char *source, Chunk *chunk, GC *gc, Table *strings) {
   Scanner scanner;
   initScanner(&scanner, source);
 
+  Compiler compiler;
+  compiler.localCount = 0;
+  compiler.scopeDepth = 0;
+
   Parser parser;
   parser.scanner = scanner;
+  parser.compiler = compiler;
   parser.hadError = false;
   parser.panicMode = false;
   parser.chunk = chunk;

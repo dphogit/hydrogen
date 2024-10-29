@@ -9,10 +9,28 @@
 #include "table.h"
 #include "token.h"
 
+// Instruction operand to encode a local is a single byte, so the VM has a hard
+// limit on the number of locals that can be in scope at once.
+#define UINT8_COUNT (UINT8_MAX + 1)
+
+#define GLOBAL_SCOPE_DEPTH 0
+
+typedef struct Local {
+  Token name;
+  int depth; // The scope depth of where the local var was declared.
+} Local;
+
+typedef struct Compiler {
+  Local locals[UINT8_COUNT]; // Locals in current scope, code declaration order.
+  int localCount;            // Number of locals are in scope.
+  int scopeDepth;            // Number of blocks surrounding current code.
+} Compiler;
+
 typedef struct Parser {
   Token current;
   Token previous;
   Scanner scanner;
+  Compiler compiler;
   bool hadError;
   bool panicMode;
   Chunk *chunk;   // The chunk the bytecode is being written to.

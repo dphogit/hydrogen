@@ -47,3 +47,8 @@ UTEST_F(VMTestFixture, globalVariable) {
   result = interpret(&utest_fixture->vm, "x;");
   ASSERT_EQ(result, (InterpretResult)INTERPRET_OK);
 }
+
+UTEST_F(VMTestFixture, localVariable) {
+  InterpretResult result = interpret(&utest_fixture->vm, "{ var x = 6.9; x; }");
+  ASSERT_EQ(result, (InterpretResult)INTERPRET_OK);
+}

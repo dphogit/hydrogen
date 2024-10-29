@@ -141,6 +141,20 @@ static InterpretResult run(VM *vm) {
     case OP_POP:
       pop(vm);
       break;
+    case OP_GET_LOCAL: {
+      // Loads value and push onto top of stack which later instructions require
+      // this top stack value to be set which the instructions can use.
+      uint8_t slot = readByte(vm);
+      push(vm, vm->stack[slot]);
+      break;
+    }
+    case OP_SET_LOCAL: {
+      // Set value at the slack slot for the corresponding local variable.
+      // Leave value on stack top as assignment is expression itself.
+      uint8_t slot = readByte(vm);
+      vm->stack[slot] = peek(vm);
+      break;
+    }
     case OP_DEFINE_GLOBAL: {
       ObjString *name = readString(vm);
       tableSet(&vm->globals, name, peek(vm));
